@@ -1,8 +1,31 @@
-node_modules/
-dist/
-.DS_Store
-*.log
-.env
+# Rust build artifacts
+target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# Bootimage
+*.bin
+*.img
+*.vdi
+*.vmdk
+*.iso
+
+# IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Old artifacts (if any)
+node_modules/
+dist/
 coverage/
