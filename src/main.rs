@@ -15,6 +15,7 @@ mod gdt;
 mod keyboard;
 mod memory;
 mod time;
+mod pit;
 mod shell;
 mod halscript;
 mod vfs;
@@ -47,10 +48,13 @@ pub extern "C" fn _start(boot_info: &'static mut bootloader::BootInfo) -> ! {
     println!("[4/6] Initializing memory...");
     memory::init(boot_info);
 
-    println!("[5/6] Initializing time...");
+    println!("[5/7] Initializing time...");
     time::init();
 
-    println!("[6/6] Enabling interrupts...");
+    println!("[6/7] Initializing PIT...");
+    pit::init();
+
+    println!("[7/7] Enabling interrupts...");
     x86_64::instructions::interrupts::enable();
 
     println!();

@@ -26,7 +26,8 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 
 ### Development
 - **Rust Powered**: Memory-safe kernel with zero-cost abstractions
-- **WebAssembly Ready**: Can be compiled to WASM for browser demos
+- **Production-Ready Kernel**: 16+ CPU exception handlers for stability
+- **Preemptive Scheduling**: Real-time task switching every 10ms
 - **Extensible**: Easy to add new commands and features
 
 ## Architecture

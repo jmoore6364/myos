@@ -134,4 +134,24 @@ impl Scheduler {
     pub fn ready_task_count(&self) -> usize {
         self.tasks.iter().filter(|t| t.state() == TaskState::Ready).count()
     }
+
+    pub fn preemptive_schedule(&mut self) {
+        // Mark current task as ready (if running)
+        if let Some(index) = self.current_task {
+            if self.tasks[index].state() == TaskState::Running {
+                self.tasks[index].set_state(TaskState::Ready);
+            }
+        }
+
+        // Schedule next task
+        self.schedule_next();
+    }
+}
+
+// Global function called from timer interrupt
+pub fn schedule() {
+    // For now, just do round-robin scheduling
+    // In a real implementation, this would involve context switching
+    let mut scheduler = crate::SCHEDULER.lock();
+    scheduler.preemptive_schedule();
 }
