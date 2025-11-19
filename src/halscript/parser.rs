@@ -1,6 +1,7 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
+use alloc::format;
 use super::lexer::Token;
 use super::value::Value;
 

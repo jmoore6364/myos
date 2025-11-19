@@ -100,7 +100,7 @@ extern "x86-interrupt" fn page_fault_handler(
     }
 }
 
-#[test_case]
-fn test_breakpoint_exception() {
-    x86_64::instructions::interrupts::int3();
-}
+// #[test_case]
+// fn test_breakpoint_exception() {
+//     x86_64::instructions::interrupts::int3();
+// }

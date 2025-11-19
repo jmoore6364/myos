@@ -1,4 +1,4 @@
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::collections::BTreeMap;
 use alloc::format;
@@ -127,11 +127,11 @@ impl VirtualFileSystem {
         }
 
         // Extract filename
-        let filename = full_path.rsplit('/').next().unwrap_or(path);
+        let filename = String::from(full_path.rsplit('/').next().unwrap_or(path));
 
         self.root.insert(
             full_path,
-            FileNode::new_file(String::from(filename), content)
+            FileNode::new_file(filename, content)
         );
 
         Ok(())
@@ -144,11 +144,11 @@ impl VirtualFileSystem {
             return Err(format!("Directory already exists: {}", path));
         }
 
-        let dirname = full_path.rsplit('/').next().unwrap_or(path);
+        let dirname = String::from(full_path.rsplit('/').next().unwrap_or(path));
 
         self.root.insert(
             full_path,
-            FileNode::new_directory(String::from(dirname))
+            FileNode::new_directory(dirname)
         );
 
         Ok(())

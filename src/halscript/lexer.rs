@@ -1,5 +1,6 @@
 use alloc::string::String;
 use alloc::vec::Vec;
+use alloc::format;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
