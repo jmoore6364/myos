@@ -14,6 +14,7 @@ pub enum Expr {
     Call(String, Vec<Expr>),
     Index(Box<Expr>, Box<Expr>),
     Array(Vec<Expr>),
+    Map(Vec<(String, Expr)>),
 }
 
 #[derive(Debug, Clone)]
@@ -378,6 +379,38 @@ impl Parser {
                 }
                 self.expect(Token::RBracket)?;
                 Ok(Expr::Array(elements))
+            }
+            Token::LBrace => {
+                let mut entries = Vec::new();
+                if self.peek() != &Token::RBrace {
+                    // Parse first key-value pair
+                    let key = match self.advance() {
+                        Token::String(s) => s,
+                        Token::Ident(s) => s,
+                        token => return Err(format!("Expected string or identifier as map key, got {:?}", token)),
+                    };
+                    self.expect(Token::Colon)?;
+                    let value = self.expression()?;
+                    entries.push((key, value));
+
+                    // Parse remaining key-value pairs
+                    while self.peek() == &Token::Comma {
+                        self.advance();
+                        if self.peek() == &Token::RBrace {
+                            break; // Trailing comma
+                        }
+                        let key = match self.advance() {
+                            Token::String(s) => s,
+                            Token::Ident(s) => s,
+                            token => return Err(format!("Expected string or identifier as map key, got {:?}", token)),
+                        };
+                        self.expect(Token::Colon)?;
+                        let value = self.expression()?;
+                        entries.push((key, value));
+                    }
+                }
+                self.expect(Token::RBrace)?;
+                Ok(Expr::Map(entries))
             }
             token => Err(format!("Unexpected token: {:?}", token)),
         }

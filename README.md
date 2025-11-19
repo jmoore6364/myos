@@ -15,7 +15,7 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 ### User Environment
 - **Interactive Shell**: 39+ commands for system control
 - **Virtual File System**: In-memory VFS with Unix-like commands (ls, cd, cat, mkdir, touch, rm, write, exec)
-- **HAL Script Language**: Turing-complete language with 28 built-ins (see [HALSCRIPT.md](HALSCRIPT.md))
+- **HAL Script Language**: Turing-complete language with 32 built-ins (see [HALSCRIPT.md](HALSCRIPT.md))
 - **Persistent REPL**: Variables and functions survive across commands
 - **AI Natural Language Programming**: Convert English to code with `ai` command
 - **Example Scripts**: 5 pre-loaded programs in `/scripts` directory
@@ -130,6 +130,12 @@ Once the OS boots, try these commands:
 > run files = list_dir("/scripts")
 > run print files
 
+# Maps (dictionaries)
+> run user = {"name": "Alice", "age": 30, "city": "NYC"}
+> run print user["name"]
+> run print keys(user)
+> run print map_size(user)
+
 # AI natural language programming
 > ai create a fibonacci function
 > ai show prime numbers under 50
@@ -157,12 +163,13 @@ Once the OS boots, try these commands:
 > colors
 ```
 
-## Built-in HAL Script Functions (28 total)
+## Built-in HAL Script Functions (32 total)
 
 **String/Type:** `len()`, `str()`, `num()`
 **String Methods:** `split()`, `trim()`, `upper()`, `lower()`, `replace()`, `starts_with()`, `ends_with()`, `substring()`
 **Math:** `abs()`, `min()`, `max()`, `pow()`, `sqrt()`
 **Array:** `range()`, `push()`, `sum()`, `pop()`, `reverse()`, `join()`
+**Map:** `keys()`, `values()`, `has_key()`, `map_size()`
 **File I/O:** `read_file()`, `write_file()`, `file_exists()`, `list_dir()`
 **System:** `uptime()`
 

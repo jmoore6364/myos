@@ -184,21 +184,31 @@ impl Interpreter {
             }
             Expr::Call(name, args) => self.call_function(name, args),
             Expr::Index(arr_expr, index_expr) => {
-                let arr = self.eval_expr(*arr_expr)?;
+                let container = self.eval_expr(*arr_expr)?;
                 let index = self.eval_expr(*index_expr)?;
 
-                if let Value::Array(elements) = arr {
-                    if let Some(idx) = index.to_number() {
-                        if idx >= 0 && (idx as usize) < elements.len() {
-                            Ok(elements[idx as usize].clone())
+                match container {
+                    Value::Array(elements) => {
+                        if let Some(idx) = index.to_number() {
+                            if idx >= 0 && (idx as usize) < elements.len() {
+                                Ok(elements[idx as usize].clone())
+                            } else {
+                                Err(format!("Index {} out of bounds", idx))
+                            }
                         } else {
-                            Err(format!("Index {} out of bounds", idx))
+                            Err(String::from("Array index must be a number"))
                         }
-                    } else {
-                        Err(String::from("Array index must be a number"))
                     }
-                } else {
-                    Err(String::from("Can only index arrays"))
+                    Value::Map(map) => {
+                        if let Value::String(key) = index {
+                            map.get(&key)
+                                .cloned()
+                                .ok_or(format!("Key '{}' not found in map", key))
+                        } else {
+                            Err(String::from("Map index must be a string"))
+                        }
+                    }
+                    _ => Err(String::from("Can only index arrays and maps")),
                 }
             }
             Expr::Array(elements) => {
@@ -207,6 +217,14 @@ impl Interpreter {
                     values.push(self.eval_expr(elem)?);
                 }
                 Ok(Value::Array(values))
+            }
+            Expr::Map(entries) => {
+                let mut map = alloc::collections::BTreeMap::new();
+                for (key, value_expr) in entries {
+                    let value = self.eval_expr(value_expr)?;
+                    map.insert(key, value);
+                }
+                Ok(Value::Map(map))
             }
         }
     }
@@ -675,6 +693,62 @@ impl Interpreter {
                         }
                     }
                     _ => Err(String::from("list_dir() requires a string path")),
+                }
+            }
+            "keys" => {
+                if args.len() != 1 {
+                    return Err(format!("keys() takes 1 argument, got {}", args.len()));
+                }
+                let map_val = self.eval_expr(args[0].clone())?;
+
+                match map_val {
+                    Value::Map(m) => {
+                        let keys: Vec<Value> = m.keys()
+                            .map(|k| Value::String(k.clone()))
+                            .collect();
+                        Ok(Value::Array(keys))
+                    }
+                    _ => Err(String::from("keys() requires a map")),
+                }
+            }
+            "values" => {
+                if args.len() != 1 {
+                    return Err(format!("values() takes 1 argument, got {}", args.len()));
+                }
+                let map_val = self.eval_expr(args[0].clone())?;
+
+                match map_val {
+                    Value::Map(m) => {
+                        let vals: Vec<Value> = m.values().cloned().collect();
+                        Ok(Value::Array(vals))
+                    }
+                    _ => Err(String::from("values() requires a map")),
+                }
+            }
+            "has_key" => {
+                if args.len() != 2 {
+                    return Err(format!("has_key() takes 2 arguments, got {}", args.len()));
+                }
+                let map_val = self.eval_expr(args[0].clone())?;
+                let key_val = self.eval_expr(args[1].clone())?;
+
+                match (map_val, key_val) {
+                    (Value::Map(m), Value::String(k)) => {
+                        Ok(Value::Bool(m.contains_key(&k)))
+                    }
+                    (Value::Map(_), _) => Err(String::from("has_key() key must be a string")),
+                    _ => Err(String::from("has_key() requires a map and a string key")),
+                }
+            }
+            "map_size" => {
+                if args.len() != 1 {
+                    return Err(format!("map_size() takes 1 argument, got {}", args.len()));
+                }
+                let map_val = self.eval_expr(args[0].clone())?;
+
+                match map_val {
+                    Value::Map(m) => Ok(Value::Number(m.len() as i64)),
+                    _ => Err(String::from("map_size() requires a map")),
                 }
             }
             _ => {

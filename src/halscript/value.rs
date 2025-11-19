@@ -1,5 +1,6 @@
 use alloc::string::String;
 use alloc::vec::Vec;
+use alloc::collections::BTreeMap;
 use alloc::format;
 use core::fmt;
 
@@ -10,6 +11,7 @@ pub enum Value {
     Number(i64),
     String(String),
     Array(Vec<Value>),
+    Map(BTreeMap<String, Value>),
 }
 
 impl Value {
@@ -20,6 +22,7 @@ impl Value {
             Value::Number(n) => *n != 0,
             Value::String(s) => !s.is_empty(),
             Value::Array(a) => !a.is_empty(),
+            Value::Map(m) => !m.is_empty(),
         }
     }
 
@@ -40,6 +43,12 @@ impl Value {
             Value::Array(a) => {
                 let items: Vec<String> = a.iter().map(|v| v.to_string()).collect();
                 format!("[{}]", items.join(", "))
+            }
+            Value::Map(m) => {
+                let items: Vec<String> = m.iter()
+                    .map(|(k, v)| format!("\"{}\": {}", k, v.to_string()))
+                    .collect();
+                format!("{{{}}}", items.join(", "))
             }
         }
     }

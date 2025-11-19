@@ -50,6 +50,7 @@ pub enum Token {
     LBracket,
     RBracket,
     Comma,
+    Colon,
     Dot,
     DotDot,
     Newline,
@@ -112,6 +113,7 @@ impl Lexer {
             '[' => Token::LBracket,
             ']' => Token::RBracket,
             ',' => Token::Comma,
+            ':' => Token::Colon,
             '.' => {
                 if self.peek() == Some('.') {
                     self.advance();

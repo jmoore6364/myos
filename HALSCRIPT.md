@@ -30,6 +30,7 @@ items = [1, 2, 3, 4, 5]
 - **Strings**: UTF-8 strings (`"hello"`, `"world"`)
 - **Booleans**: `true`, `false`
 - **Arrays**: `[1, 2, 3]`
+- **Maps**: Key-value dictionaries (`{"name": "Alice", "age": 30}`)
 - **Null**: `null`
 
 ### Operators
@@ -185,6 +186,31 @@ matrix = [[1, 2], [3, 4], [5, 6]]
 print matrix[1][0]  # 3
 ```
 
+### Maps (Dictionaries)
+
+```halscript
+# Create map
+user = {"name": "Alice", "age": 30, "active": true}
+
+# Access values
+print user["name"]   # Alice
+print user["age"]    # 30
+
+# Nested maps
+config = {
+    "server": {"host": "localhost", "port": 8080},
+    "debug": true
+}
+print config["server"]["host"]  # localhost
+
+# Maps with mixed types
+data = {
+    "id": 42,
+    "items": [1, 2, 3],
+    "meta": {"version": "1.0"}
+}
+```
+
 ### Print Statement
 
 ```halscript
@@ -205,7 +231,7 @@ x = 10  # This is also a comment
 
 ## Built-in Functions
 
-HAL Script provides 28 powerful built-in functions:
+HAL Script provides 32 powerful built-in functions:
 
 ### String & Type Conversion
 
@@ -310,6 +336,46 @@ arr = ["hello", "world", "!"]
 text = join(arr, " ")       # "hello world !"
 nums = [1, 2, 3]
 text2 = join(nums, ", ")    # "1, 2, 3"
+```
+
+### Map Methods
+
+#### `keys(map)`
+Returns an array of all keys in the map:
+```halscript
+user = {"name": "Alice", "age": 30, "city": "NYC"}
+all_keys = keys(user)       # ["age", "city", "name"] (sorted)
+for key in all_keys {
+    print key + ": " + str(user[key])
+}
+```
+
+#### `values(map)`
+Returns an array of all values in the map:
+```halscript
+user = {"name": "Alice", "age": 30}
+all_values = values(user)   # ["Alice", 30]
+print "Values: " + str(all_values)
+```
+
+#### `has_key(map, key)`
+Checks if a key exists in the map:
+```halscript
+user = {"name": "Alice", "age": 30}
+if has_key(user, "name") {
+    print "Name is present"
+}
+if !has_key(user, "email") {
+    print "Email is missing"
+}
+```
+
+#### `map_size(map)`
+Returns the number of key-value pairs in the map:
+```halscript
+user = {"name": "Alice", "age": 30, "city": "NYC"}
+size = map_size(user)       # 3
+print "Map has " + str(size) + " entries"
 ```
 
 ### String Methods
