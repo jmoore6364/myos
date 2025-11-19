@@ -77,6 +77,15 @@ impl Shell {
             "about" => self.cmd_about(args),
             "run" => self.cmd_run(args),
             "examples" => self.cmd_examples(args),
+            // File system commands
+            "ls" => self.cmd_ls(args),
+            "cd" => self.cmd_cd(args),
+            "pwd" => self.cmd_pwd(args),
+            "cat" => self.cmd_cat(args),
+            "mkdir" => self.cmd_mkdir(args),
+            "touch" => self.cmd_touch(args),
+            "rm" => self.cmd_rm(args),
+            "write" => self.cmd_write(args),
             "" => {},
             _ => {
                 println!("Unknown command: '{}'. Type 'help' for available commands.", command);
@@ -92,17 +101,33 @@ impl Shell {
 
     fn cmd_help(&self, _args: &[&str]) {
         println!("Available commands:");
-        println!("  help        - Show this help message");
-        println!("  about       - About this operating system");
-        println!("  clear       - Clear the screen");
-        println!("  echo <text> - Print text to the screen");
-        println!("  sysinfo     - Display system information");
-        println!("  uptime      - Show system uptime");
-        println!("  history     - Show command history");
-        println!("  colors      - Display color test");
-        println!("  run <code>  - Run HAL Script code");
-        println!("  examples    - Show HAL Script examples");
-        println!("  panic       - Trigger a kernel panic (for testing)");
+        println!();
+        println!("System:");
+        println!("  help            - Show this help message");
+        println!("  about           - About this operating system");
+        println!("  clear           - Clear the screen");
+        println!("  sysinfo         - Display system information");
+        println!("  uptime          - Show system uptime");
+        println!("  colors          - Display color test");
+        println!();
+        println!("File System:");
+        println!("  ls [path]       - List directory contents");
+        println!("  cd <path>       - Change directory");
+        println!("  pwd             - Print working directory");
+        println!("  cat <file>      - Display file contents");
+        println!("  mkdir <dir>     - Create directory");
+        println!("  touch <file>    - Create empty file");
+        println!("  rm <file>       - Remove file or directory");
+        println!("  write <file> <text> - Write text to file");
+        println!();
+        println!("HAL Script:");
+        println!("  run <code>      - Run HAL Script code");
+        println!("  examples        - Show HAL Script examples");
+        println!();
+        println!("Other:");
+        println!("  echo <text>     - Print text to the screen");
+        println!("  history         - Show command history");
+        println!("  panic           - Trigger a kernel panic (for testing)");
     }
 
     fn cmd_about(&self, _args: &[&str]) {
@@ -120,7 +145,8 @@ impl Shell {
         println!("  ✓ VGA text mode driver");
         println!("  ✓ PS/2 keyboard driver");
         println!("  ✓ Interactive command shell");
-        println!("  ⧗ Virtual file system (coming soon)");
+        println!("  ✓ HAL Script programming language");
+        println!("  ✓ Virtual file system");
         println!("  ⧗ Process scheduler (coming soon)");
         println!("  ⧗ AI integration (coming soon)");
         println!();
@@ -303,5 +329,143 @@ impl Shell {
         println!("7. Built-in functions:");
         println!("   run print uptime()");
         println!("   run print len(\"hello\")");
+    }
+
+    // File system commands
+
+    fn cmd_ls(&self, args: &[&str]) {
+        use crate::vfs::{VFS, FileType};
+
+        let path = if args.is_empty() {
+            "."
+        } else {
+            args[0]
+        };
+
+        let mut vfs = VFS.lock();
+        let actual_path = if path == "." {
+            vfs.get_current_dir()
+        } else {
+            path
+        };
+
+        match vfs.list_directory(actual_path) {
+            Ok(entries) => {
+                if entries.is_empty() {
+                    println!("Empty directory");
+                } else {
+                    for (name, file_type, size) in entries {
+                        match file_type {
+                            FileType::Directory => println!("  [DIR]  {}", name),
+                            FileType::File => println!("  [FILE] {} ({} bytes)", name, size),
+                        }
+                    }
+                }
+            }
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_cd(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.is_empty() {
+            println!("Usage: cd <directory>");
+            return;
+        }
+
+        let mut vfs = VFS.lock();
+        if let Err(e) = vfs.change_directory(args[0]) {
+            println!("Error: {}", e);
+        }
+    }
+
+    fn cmd_pwd(&self, _args: &[&str]) {
+        use crate::vfs::VFS;
+
+        let vfs = VFS.lock();
+        println!("{}", vfs.get_current_dir());
+    }
+
+    fn cmd_cat(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.is_empty() {
+            println!("Usage: cat <file>");
+            return;
+        }
+
+        let vfs = VFS.lock();
+        match vfs.read_file(args[0]) {
+            Ok(content) => print!("{}", content),
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_mkdir(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.is_empty() {
+            println!("Usage: mkdir <directory>");
+            return;
+        }
+
+        let mut vfs = VFS.lock();
+        if let Err(e) = vfs.create_directory(args[0]) {
+            println!("Error: {}", e);
+        } else {
+            println!("Directory created: {}", args[0]);
+        }
+    }
+
+    fn cmd_touch(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.is_empty() {
+            println!("Usage: touch <file>");
+            return;
+        }
+
+        let mut vfs = VFS.lock();
+        if let Err(e) = vfs.create_file(args[0], String::new()) {
+            println!("Error: {}", e);
+        } else {
+            println!("File created: {}", args[0]);
+        }
+    }
+
+    fn cmd_rm(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.is_empty() {
+            println!("Usage: rm <file>");
+            return;
+        }
+
+        let mut vfs = VFS.lock();
+        if let Err(e) = vfs.delete(args[0]) {
+            println!("Error: {}", e);
+        } else {
+            println!("Removed: {}", args[0]);
+        }
+    }
+
+    fn cmd_write(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.len() < 2 {
+            println!("Usage: write <file> <content>");
+            return;
+        }
+
+        let filename = args[0];
+        let content = args[1..].join(" ");
+
+        let mut vfs = VFS.lock();
+        if let Err(e) = vfs.write_file(filename, content) {
+            println!("Error: {}", e);
+        } else {
+            println!("Written to: {}", filename);
+        }
     }
 }

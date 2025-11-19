@@ -20,6 +20,7 @@ mod memory;
 mod time;
 mod shell;
 mod halscript;
+mod vfs;
 
 lazy_static! {
     pub static ref SHELL: Mutex<shell::Shell> = Mutex::new(shell::Shell::new());

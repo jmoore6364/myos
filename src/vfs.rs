@@ -1,0 +1,259 @@
+use alloc::string::String;
+use alloc::vec::Vec;
+use alloc::collections::BTreeMap;
+use alloc::format;
+use spin::Mutex;
+use lazy_static::lazy_static;
+
+#[derive(Debug, Clone)]
+pub enum FileType {
+    File,
+    Directory,
+}
+
+#[derive(Debug, Clone)]
+pub struct FileNode {
+    pub name: String,
+    pub file_type: FileType,
+    pub content: String,
+    pub size: usize,
+    pub created: u64,
+    pub modified: u64,
+}
+
+impl FileNode {
+    pub fn new_file(name: String, content: String) -> Self {
+        let size = content.len();
+        let time = crate::time::uptime_ms();
+        FileNode {
+            name,
+            file_type: FileType::File,
+            content,
+            size,
+            created: time,
+            modified: time,
+        }
+    }
+
+    pub fn new_directory(name: String) -> Self {
+        let time = crate::time::uptime_ms();
+        FileNode {
+            name,
+            file_type: FileType::Directory,
+            content: String::new(),
+            size: 0,
+            created: time,
+            modified: time,
+        }
+    }
+}
+
+pub struct VirtualFileSystem {
+    root: BTreeMap<String, FileNode>,
+    current_dir: String,
+}
+
+impl VirtualFileSystem {
+    pub fn new() -> Self {
+        let mut vfs = VirtualFileSystem {
+            root: BTreeMap::new(),
+            current_dir: String::from("/"),
+        };
+
+        // Create root directory structure
+        vfs.root.insert(String::from("/"), FileNode::new_directory(String::from("/")));
+        vfs.root.insert(String::from("/home"), FileNode::new_directory(String::from("home")));
+        vfs.root.insert(String::from("/scripts"), FileNode::new_directory(String::from("scripts")));
+        vfs.root.insert(String::from("/tmp"), FileNode::new_directory(String::from("tmp")));
+
+        // Create a welcome file
+        let welcome = "Welcome to MyOS!\n\nThis is a bare-metal operating system with:\n- HAL Script programming language\n- Interactive shell\n- Virtual file system\n- AI integration (coming soon)\n\nType 'help' for available commands.\n";
+        vfs.root.insert(
+            String::from("/home/welcome.txt"),
+            FileNode::new_file(String::from("welcome.txt"), String::from(welcome))
+        );
+
+        vfs
+    }
+
+    fn normalize_path(&self, path: &str) -> String {
+        if path.starts_with('/') {
+            String::from(path)
+        } else {
+            if self.current_dir == "/" {
+                format!("/{}", path)
+            } else {
+                format!("{}/{}", self.current_dir, path)
+            }
+        }
+    }
+
+    pub fn create_file(&mut self, path: &str, content: String) -> Result<(), String> {
+        let full_path = self.normalize_path(path);
+
+        if self.root.contains_key(&full_path) {
+            return Err(format!("File already exists: {}", path));
+        }
+
+        // Extract filename
+        let filename = full_path.rsplit('/').next().unwrap_or(path);
+
+        self.root.insert(
+            full_path,
+            FileNode::new_file(String::from(filename), content)
+        );
+
+        Ok(())
+    }
+
+    pub fn create_directory(&mut self, path: &str) -> Result<(), String> {
+        let full_path = self.normalize_path(path);
+
+        if self.root.contains_key(&full_path) {
+            return Err(format!("Directory already exists: {}", path));
+        }
+
+        let dirname = full_path.rsplit('/').next().unwrap_or(path);
+
+        self.root.insert(
+            full_path,
+            FileNode::new_directory(String::from(dirname))
+        );
+
+        Ok(())
+    }
+
+    pub fn read_file(&self, path: &str) -> Result<String, String> {
+        let full_path = self.normalize_path(path);
+
+        match self.root.get(&full_path) {
+            Some(node) => match node.file_type {
+                FileType::File => Ok(node.content.clone()),
+                FileType::Directory => Err(format!("{} is a directory", path)),
+            },
+            None => Err(format!("File not found: {}", path)),
+        }
+    }
+
+    pub fn write_file(&mut self, path: &str, content: String) -> Result<(), String> {
+        let full_path = self.normalize_path(path);
+
+        match self.root.get_mut(&full_path) {
+            Some(node) => match node.file_type {
+                FileType::File => {
+                    node.content = content.clone();
+                    node.size = content.len();
+                    node.modified = crate::time::uptime_ms();
+                    Ok(())
+                }
+                FileType::Directory => Err(format!("{} is a directory", path)),
+            },
+            None => {
+                // Create new file
+                self.create_file(path, content)
+            }
+        }
+    }
+
+    pub fn delete(&mut self, path: &str) -> Result<(), String> {
+        let full_path = self.normalize_path(path);
+
+        if full_path == "/" {
+            return Err(String::from("Cannot delete root directory"));
+        }
+
+        // Check if it's a directory with contents
+        let is_dir = self.root.get(&full_path)
+            .map(|n| matches!(n.file_type, FileType::Directory))
+            .unwrap_or(false);
+
+        if is_dir {
+            let has_contents = self.root.keys()
+                .any(|k| k.starts_with(&full_path) && k != &full_path);
+
+            if has_contents {
+                return Err(format!("Directory not empty: {}", path));
+            }
+        }
+
+        self.root.remove(&full_path)
+            .ok_or(format!("File not found: {}", path))?;
+
+        Ok(())
+    }
+
+    pub fn list_directory(&self, path: &str) -> Result<Vec<(String, FileType, usize)>, String> {
+        let full_path = self.normalize_path(path);
+
+        // Check if directory exists
+        match self.root.get(&full_path) {
+            Some(node) => match node.file_type {
+                FileType::Directory => {},
+                FileType::File => return Err(format!("{} is not a directory", path)),
+            },
+            None => return Err(format!("Directory not found: {}", path)),
+        }
+
+        let prefix = if full_path == "/" {
+            String::from("/")
+        } else {
+            format!("{}/", full_path)
+        };
+
+        let mut entries = Vec::new();
+
+        for (path, node) in &self.root {
+            if path == &full_path {
+                continue;
+            }
+
+            if path.starts_with(&prefix) {
+                let remaining = &path[prefix.len()..];
+                // Only direct children (no further slashes)
+                if !remaining.contains('/') && !remaining.is_empty() {
+                    entries.push((
+                        remaining.to_string(),
+                        node.file_type.clone(),
+                        node.size,
+                    ));
+                }
+            }
+        }
+
+        Ok(entries)
+    }
+
+    pub fn get_current_dir(&self) -> &str {
+        &self.current_dir
+    }
+
+    pub fn change_directory(&mut self, path: &str) -> Result<(), String> {
+        let full_path = self.normalize_path(path);
+
+        match self.root.get(&full_path) {
+            Some(node) => match node.file_type {
+                FileType::Directory => {
+                    self.current_dir = full_path;
+                    Ok(())
+                }
+                FileType::File => Err(format!("{} is not a directory", path)),
+            },
+            None => Err(format!("Directory not found: {}", path)),
+        }
+    }
+
+    pub fn file_exists(&self, path: &str) -> bool {
+        let full_path = self.normalize_path(path);
+        self.root.contains_key(&full_path)
+    }
+
+    pub fn get_info(&self, path: &str) -> Result<&FileNode, String> {
+        let full_path = self.normalize_path(path);
+        self.root.get(&full_path)
+            .ok_or(format!("File not found: {}", path))
+    }
+}
+
+lazy_static! {
+    pub static ref VFS: Mutex<VirtualFileSystem> = Mutex::new(VirtualFileSystem::new());
+}
