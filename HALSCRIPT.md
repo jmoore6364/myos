@@ -100,6 +100,35 @@ print text  # "Hello World"
 - `/lib/math.hal` - Mathematical functions (factorial, gcd, lcm, is_prime)
 - `/lib/string.hal` - String utilities (reverse_string, count_words, title_case)
 
+### Command-Line Arguments
+
+Scripts can access command-line arguments through the global `args` array:
+
+```halscript
+# In a script file, access arguments
+if len(args) == 0 {
+    print "No arguments provided"
+} else {
+    print "Arguments:"
+    for arg in args {
+        print "  " + arg
+    }
+}
+
+# Example: Save as /apps/myapp.hal
+# Run with: app run myapp hello world
+# Output:
+#   Arguments:
+#     hello
+#     world
+```
+
+**Built-in Applications:**
+- `calc` - Calculator (usage: `app run calc 10 + 5`)
+- `greeter` - Greet users (usage: `app run greeter Alice`)
+- `filemgr` - File manager (usage: `app run filemgr list /scripts`)
+- `primefind` - Prime number finder (usage: `app run primefind 100`)
+
 ### Conditionals
 
 ```halscript

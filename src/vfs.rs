@@ -107,6 +107,9 @@ impl VirtualFileSystem {
         // Create /lib directory for library modules
         vfs.root.insert(String::from("/lib"), FileNode::new_directory(String::from("lib")));
 
+        // Create /apps directory for user applications
+        vfs.root.insert(String::from("/apps"), FileNode::new_directory(String::from("apps")));
+
         // Math library
         let math_lib = "# Math Library\n\nfn factorial(n) {\n    if n <= 1 {\n        return 1\n    }\n    return n * factorial(n - 1)\n}\n\nfn gcd(a, b) {\n    while b != 0 {\n        temp = b\n        b = a % b\n        a = temp\n    }\n    return abs(a)\n}\n\nfn lcm(a, b) {\n    return abs(a * b) / gcd(a, b)\n}\n\nfn is_prime(n) {\n    if n < 2 {\n        return false\n    }\n    i = 2\n    while i * i <= n {\n        if n % i == 0 {\n            return false\n        }\n        i = i + 1\n    }\n    return true\n}\n";
         vfs.root.insert(
@@ -126,6 +129,34 @@ impl VirtualFileSystem {
         vfs.root.insert(
             String::from("/scripts/demo_app.hal"),
             FileNode::new_file(String::from("demo_app.hal"), String::from(demo_app))
+        );
+
+        // Calculator app
+        let calc_app = "# Calculator App\n# Usage: run with arguments like: 10 + 5\n\nif len(args) < 3 {\n    print \"Calculator App v1.0\"\n    print \"Usage: <number> <operator> <number>\"\n    print \"Operators: + - * / %\"\n    print \"Example: 10 + 5\"\n} else {\n    a = num(args[0])\n    op = args[1]\n    b = num(args[2])\n    \n    if op == \"+\" {\n        result = a + b\n    } else if op == \"-\" {\n        result = a - b\n    } else if op == \"*\" {\n        result = a * b\n    } else if op == \"/\" {\n        if b == 0 {\n            print \"Error: Division by zero\"\n        } else {\n            result = a / b\n        }\n    } else if op == \"%\" {\n        result = a % b\n    } else {\n        print \"Error: Unknown operator \" + op\n    }\n    \n    if result != null {\n        print str(a) + \" \" + op + \" \" + str(b) + \" = \" + str(result)\n    }\n}\n";
+        vfs.root.insert(
+            String::from("/apps/calc.hal"),
+            FileNode::new_file(String::from("calc.hal"), String::from(calc_app))
+        );
+
+        // Greeter app
+        let greeter_app = "# Greeter App\n# Usage: run with your name as argument\n\nimport \"/lib/string.hal\"\n\nif len(args) == 0 {\n    print \"Hello, stranger!\"\n    print \"Try running with your name: greeter YourName\"\n} else {\n    name = join(args, \" \")\n    nice_name = title_case(name)\n    print \"Hello, \" + nice_name + \"!\"\n    print \"Your name has \" + str(len(name)) + \" characters.\"\n    print \"Word count: \" + str(count_words(name))\n}\n";
+        vfs.root.insert(
+            String::from("/apps/greeter.hal"),
+            FileNode::new_file(String::from("greeter.hal"), String::from(greeter_app))
+        );
+
+        // File manager app
+        let filemgr_app = "# File Manager App\n# Simple file browser and manager\n\nif len(args) == 0 {\n    print \"File Manager v1.0\"\n    print \"Commands:\"\n    print \"  list <path>     - List directory contents\"\n    print \"  read <file>     - Read file contents\"\n    print \"  create <file>   - Create empty file\"\n    print \"Example: filemgr list /scripts\"\n} else {\n    cmd = args[0]\n    \n    if cmd == \"list\" {\n        path = if len(args) > 1 { args[1] } else { \"/\" }\n        files = list_dir(path)\n        print \"Contents of \" + path + \":\"\n        for file in files {\n            print \"  \" + file\n        }\n        print \"Total: \" + str(len(files)) + \" items\"\n    } else if cmd == \"read\" {\n        if len(args) < 2 {\n            print \"Error: Please specify a file\"\n        } else {\n            path = args[1]\n            if file_exists(path) {\n                content = read_file(path)\n                print \"=== \" + path + \" ===\"\n                print content\n            } else {\n                print \"Error: File not found: \" + path\n            }\n        }\n    } else if cmd == \"create\" {\n        if len(args) < 2 {\n            print \"Error: Please specify a file\"\n        } else {\n            path = args[1]\n            write_file(path, \"\")\n            print \"Created: \" + path\n        }\n    } else {\n        print \"Error: Unknown command: \" + cmd\n    }\n}\n";
+        vfs.root.insert(
+            String::from("/apps/filemgr.hal"),
+            FileNode::new_file(String::from("filemgr.hal"), String::from(filemgr_app))
+        );
+
+        // Prime finder app
+        let prime_app = "# Prime Finder App\nimport \"/lib/math.hal\"\n\nif len(args) == 0 {\n    print \"Prime Finder v1.0\"\n    print \"Usage: <max_number>\"\n    print \"Example: primefind 100\"\n} else {\n    max_num = num(args[0])\n    print \"Prime numbers up to \" + str(max_num) + \":\"\n    \n    count = 0\n    for n in 2..max_num {\n        if is_prime(n) {\n            print n\n            count = count + 1\n        }\n    }\n    \n    print \"\"\n    print \"Found \" + str(count) + \" prime numbers\"\n}\n";
+        vfs.root.insert(
+            String::from("/apps/primefind.hal"),
+            FileNode::new_file(String::from("primefind.hal"), String::from(prime_app))
         );
 
         vfs

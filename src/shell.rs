@@ -77,6 +77,7 @@ impl Shell {
             "about" => self.cmd_about(args),
             "run" => self.cmd_run(args),
             "exec" => self.cmd_exec(args),
+            "app" => self.cmd_app(args),
             "examples" => self.cmd_examples(args),
             // File system commands
             "ls" => self.cmd_ls(args),
@@ -130,8 +131,12 @@ impl Shell {
         println!();
         println!("HAL Script:");
         println!("  run <code>      - Run HAL Script code");
-        println!("  exec <file>     - Execute .hal script file");
+        println!("  exec <file> [args...] - Execute .hal script file with arguments");
         println!("  examples        - Show HAL Script examples");
+        println!();
+        println!("Applications:");
+        println!("  app list        - List installed applications");
+        println!("  app run <name> [args...] - Run an application");
         println!();
         println!("AI Commands:");
         println!("  ai <request>    - Natural language programming");
@@ -319,13 +324,16 @@ impl Shell {
 
     fn cmd_exec(&self, args: &[&str]) {
         if args.is_empty() {
-            println!("Usage: exec <file.hal>");
+            println!("Usage: exec <file.hal> [args...]");
             println!("Example: exec /scripts/fibonacci.hal");
+            println!("Example: exec /apps/calc.hal 10 + 5");
             return;
         }
 
         use crate::vfs::VFS;
         use crate::halscript::{lexer::Lexer, parser::Parser};
+        use alloc::string::String;
+        use alloc::vec::Vec;
 
         // Read the file
         let vfs = VFS.lock();
@@ -337,6 +345,11 @@ impl Shell {
             }
         };
         drop(vfs);
+
+        // Collect script arguments (everything after the filename)
+        let script_args: Vec<String> = args[1..].iter()
+            .map(|s| String::from(*s))
+            .collect();
 
         println!("[Executing {}]", args[0]);
 
@@ -360,10 +373,89 @@ impl Shell {
             }
         };
 
-        // Execute with persistent REPL
+        // Execute with persistent REPL, setting arguments first
         let mut repl = crate::HAL_REPL.lock();
+        repl.set_args(script_args);
         if let Err(e) = repl.run(ast) {
             println!("Runtime error: {}", e);
+        }
+    }
+
+    fn cmd_app(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+        use alloc::string::String;
+        use alloc::vec::Vec;
+
+        if args.is_empty() {
+            println!("Application Manager");
+            println!();
+            println!("Usage:");
+            println!("  app list           - List all installed apps");
+            println!("  app run <name> [args...] - Run an application");
+            println!();
+            println!("Examples:");
+            println!("  app list");
+            println!("  app run calc 10 + 5");
+            println!("  app run greeter Alice");
+            println!("  app run primefind 50");
+            return;
+        }
+
+        match args[0] {
+            "list" => {
+                let vfs = VFS.lock();
+                match vfs.list_directory("/apps") {
+                    Ok(entries) => {
+                        println!("Installed Applications:");
+                        println!();
+                        for (name, file_type, _) in entries {
+                            if matches!(file_type, crate::vfs::FileType::File) {
+                                // Remove .hal extension for display
+                                let app_name = if name.ends_with(".hal") {
+                                    &name[..name.len()-4]
+                                } else {
+                                    &name
+                                };
+                                println!("  {}", app_name);
+                            }
+                        }
+                    }
+                    Err(e) => println!("Error listing apps: {}", e),
+                }
+            }
+            "run" => {
+                if args.len() < 2 {
+                    println!("Usage: app run <name> [args...]");
+                    println!("Example: app run calc 10 + 5");
+                    return;
+                }
+
+                let app_name = args[1];
+                let app_path = if app_name.ends_with(".hal") {
+                    format!("/apps/{}", app_name)
+                } else {
+                    format!("/apps/{}.hal", app_name)
+                };
+
+                // Collect app arguments (everything after the app name)
+                let app_args: Vec<&str> = if args.len() > 2 {
+                    args[2..].to_vec()
+                } else {
+                    Vec::new()
+                };
+
+                // Build full exec args (path + app arguments)
+                let mut exec_args = Vec::new();
+                exec_args.push(app_path.as_str());
+                exec_args.extend(app_args);
+
+                // Use exec command to run the app
+                self.cmd_exec(&exec_args);
+            }
+            _ => {
+                println!("Unknown app command: {}", args[0]);
+                println!("Try: app list   or   app run <name>");
+            }
         }
     }
 

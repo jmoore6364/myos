@@ -24,7 +24,7 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new() -> Self {
-        Interpreter {
+        let mut interpreter = Interpreter {
             globals: BTreeMap::new(),
             functions: BTreeMap::new(),
             locals: Vec::new(),
@@ -32,7 +32,22 @@ impl Interpreter {
             break_flag: false,
             continue_flag: false,
             loaded_modules: alloc::collections::BTreeSet::new(),
-        }
+        };
+
+        // Initialize with empty args array
+        interpreter.globals.insert(
+            String::from("args"),
+            Value::Array(Vec::new())
+        );
+
+        interpreter
+    }
+
+    pub fn set_args(&mut self, arguments: Vec<String>) {
+        let arg_values: Vec<Value> = arguments.into_iter()
+            .map(|s| Value::String(s))
+            .collect();
+        self.globals.insert(String::from("args"), Value::Array(arg_values));
     }
 
     pub fn run(&mut self, statements: Vec<Stmt>) -> Result<(), String> {

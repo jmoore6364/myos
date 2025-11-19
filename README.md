@@ -20,6 +20,8 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 - **AI Natural Language Programming**: Convert English to code with `ai` command
 - **Example Scripts**: 6 pre-loaded programs in `/scripts` directory
 - **Standard Libraries**: Math and string utilities in `/lib` directory
+- **Application Platform**: Built-in apps in `/apps` with `app` command to run them
+- **Command-Line Arguments**: Pass arguments to scripts via the `args` global variable
 - **Unit Tests**: Comprehensive test suite for language components
 
 ### Development
@@ -153,6 +155,13 @@ Once the OS boots, try these commands:
 > exec /scripts/demo_app.hal
 > run import "/lib/math.hal"
 > run print factorial(6)
+
+# Run applications with arguments
+> app list
+> app run calc 10 + 5
+> app run greeter Alice
+> app run primefind 50
+> app run filemgr list /scripts
 
 # Task management
 > ps
