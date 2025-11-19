@@ -8,6 +8,8 @@
 extern crate alloc;
 
 use core::panic::PanicInfo;
+use lazy_static::lazy_static;
+use spin::Mutex;
 
 mod vga_buffer;
 mod serial;
@@ -15,6 +17,12 @@ mod interrupts;
 mod gdt;
 mod keyboard;
 mod memory;
+mod time;
+mod shell;
+
+lazy_static! {
+    pub static ref SHELL: Mutex<shell::Shell> = Mutex::new(shell::Shell::new());
+}
 
 /// Entry point for the kernel
 #[no_mangle]
@@ -25,19 +33,22 @@ pub extern "C" fn _start(boot_info: &'static mut bootloader::BootInfo) -> ! {
     println!();
 
     // Initialize kernel subsystems
-    println!("[1/5] Initializing GDT...");
+    println!("[1/6] Initializing GDT...");
     gdt::init();
 
-    println!("[2/5] Initializing IDT...");
+    println!("[2/6] Initializing IDT...");
     interrupts::init_idt();
 
-    println!("[3/5] Initializing PIC...");
+    println!("[3/6] Initializing PIC...");
     unsafe { interrupts::PICS.lock().initialize() };
 
-    println!("[4/5] Initializing memory...");
+    println!("[4/6] Initializing memory...");
     memory::init(boot_info);
 
-    println!("[5/5] Enabling interrupts...");
+    println!("[5/6] Initializing time...");
+    time::init();
+
+    println!("[6/6] Enabling interrupts...");
     x86_64::instructions::interrupts::enable();
 
     println!();
@@ -50,13 +61,15 @@ pub extern "C" fn _start(boot_info: &'static mut bootloader::BootInfo) -> ! {
     println!("  Features: Interrupts, Memory Management, Keyboard Input");
     println!();
     println!("Type 'help' for available commands");
-    println!("> ");
+    println!();
 
     #[cfg(test)]
     test_main();
 
-    println!("Kernel ready. Awaiting input...");
+    // Print initial shell prompt
+    print!("> ");
 
+    // Main kernel loop
     loop {
         x86_64::instructions::hlt();
     }
