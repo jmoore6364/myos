@@ -205,7 +205,7 @@ x = 10  # This is also a comment
 
 ## Built-in Functions
 
-HAL Script provides 13 powerful built-in functions:
+HAL Script provides 24 powerful built-in functions:
 
 ### String & Type Conversion
 
@@ -287,6 +287,92 @@ arr2 = push(arr, 4)     # [1, 2, 3, 4]
 Sums all numbers in an array:
 ```halscript
 print sum([1, 2, 3, 4, 5])  # 15
+```
+
+#### `pop(array)`
+Returns the last element of an array:
+```halscript
+arr = [1, 2, 3, 4, 5]
+last = pop(arr)             # 5
+```
+
+#### `reverse(array)`
+Returns a new array with elements in reverse order:
+```halscript
+arr = [1, 2, 3, 4, 5]
+rev = reverse(arr)          # [5, 4, 3, 2, 1]
+```
+
+#### `join(array, separator)`
+Joins array elements into a string:
+```halscript
+arr = ["hello", "world", "!"]
+text = join(arr, " ")       # "hello world !"
+nums = [1, 2, 3]
+text2 = join(nums, ", ")    # "1, 2, 3"
+```
+
+### String Methods
+
+#### `split(string, delimiter)`
+Splits a string by delimiter into an array:
+```halscript
+text = "hello,world,foo"
+words = split(text, ",")    # ["hello", "world", "foo"]
+sentence = "The quick brown fox"
+words2 = split(sentence, " ")  # ["The", "quick", "brown", "fox"]
+```
+
+#### `trim(string)`
+Removes whitespace from both ends:
+```halscript
+text = "  hello world  "
+clean = trim(text)          # "hello world"
+```
+
+#### `upper(string)`
+Converts string to uppercase:
+```halscript
+text = "hello"
+upper_text = upper(text)    # "HELLO"
+```
+
+#### `lower(string)`
+Converts string to lowercase:
+```halscript
+text = "HELLO"
+lower_text = lower(text)    # "hello"
+```
+
+#### `replace(string, old, new)`
+Replaces all occurrences of old with new:
+```halscript
+text = "hello world"
+new_text = replace(text, "world", "HAL")  # "hello HAL"
+```
+
+#### `starts_with(string, prefix)`
+Checks if string starts with prefix:
+```halscript
+text = "hello world"
+result = starts_with(text, "hello")  # true
+result2 = starts_with(text, "world") # false
+```
+
+#### `ends_with(string, suffix)`
+Checks if string ends with suffix:
+```halscript
+text = "hello world"
+result = ends_with(text, "world")    # true
+result2 = ends_with(text, "hello")   # false
+```
+
+#### `substring(string, start, end)`
+Extracts a substring from start to end index:
+```halscript
+text = "hello world"
+sub = substring(text, 0, 5)          # "hello"
+sub2 = substring(text, 6, 11)        # "world"
 ```
 
 ### System Functions

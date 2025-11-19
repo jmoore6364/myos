@@ -424,6 +424,187 @@ impl Interpreter {
                     _ => Err(String::from("sum() requires an array")),
                 }
             }
+            "split" => {
+                if args.len() != 2 {
+                    return Err(format!("split() takes 2 arguments, got {}", args.len()));
+                }
+                let string = self.eval_expr(args[0].clone())?;
+                let delimiter = self.eval_expr(args[1].clone())?;
+
+                match (string, delimiter) {
+                    (Value::String(s), Value::String(d)) => {
+                        let parts: Vec<Value> = s.split(&d as &str)
+                            .map(|p| Value::String(String::from(p)))
+                            .collect();
+                        Ok(Value::Array(parts))
+                    }
+                    _ => Err(String::from("split() requires two strings")),
+                }
+            }
+            "trim" => {
+                if args.len() != 1 {
+                    return Err(format!("trim() takes 1 argument, got {}", args.len()));
+                }
+                let value = self.eval_expr(args[0].clone())?;
+                match value {
+                    Value::String(s) => Ok(Value::String(String::from(s.trim()))),
+                    _ => Err(String::from("trim() requires a string")),
+                }
+            }
+            "upper" => {
+                if args.len() != 1 {
+                    return Err(format!("upper() takes 1 argument, got {}", args.len()));
+                }
+                let value = self.eval_expr(args[0].clone())?;
+                match value {
+                    Value::String(s) => {
+                        let upper: String = s.chars().map(|c| {
+                            if c.is_ascii_lowercase() {
+                                ((c as u8) - 32) as char
+                            } else {
+                                c
+                            }
+                        }).collect();
+                        Ok(Value::String(upper))
+                    }
+                    _ => Err(String::from("upper() requires a string")),
+                }
+            }
+            "lower" => {
+                if args.len() != 1 {
+                    return Err(format!("lower() takes 1 argument, got {}", args.len()));
+                }
+                let value = self.eval_expr(args[0].clone())?;
+                match value {
+                    Value::String(s) => {
+                        let lower: String = s.chars().map(|c| {
+                            if c.is_ascii_uppercase() {
+                                ((c as u8) + 32) as char
+                            } else {
+                                c
+                            }
+                        }).collect();
+                        Ok(Value::String(lower))
+                    }
+                    _ => Err(String::from("lower() requires a string")),
+                }
+            }
+            "replace" => {
+                if args.len() != 3 {
+                    return Err(format!("replace() takes 3 arguments, got {}", args.len()));
+                }
+                let string = self.eval_expr(args[0].clone())?;
+                let old = self.eval_expr(args[1].clone())?;
+                let new = self.eval_expr(args[2].clone())?;
+
+                match (string, old, new) {
+                    (Value::String(s), Value::String(o), Value::String(n)) => {
+                        Ok(Value::String(s.replace(&o as &str, &n as &str)))
+                    }
+                    _ => Err(String::from("replace() requires three strings")),
+                }
+            }
+            "starts_with" => {
+                if args.len() != 2 {
+                    return Err(format!("starts_with() takes 2 arguments, got {}", args.len()));
+                }
+                let string = self.eval_expr(args[0].clone())?;
+                let prefix = self.eval_expr(args[1].clone())?;
+
+                match (string, prefix) {
+                    (Value::String(s), Value::String(p)) => {
+                        Ok(Value::Bool(s.starts_with(&p as &str)))
+                    }
+                    _ => Err(String::from("starts_with() requires two strings")),
+                }
+            }
+            "ends_with" => {
+                if args.len() != 2 {
+                    return Err(format!("ends_with() takes 2 arguments, got {}", args.len()));
+                }
+                let string = self.eval_expr(args[0].clone())?;
+                let suffix = self.eval_expr(args[1].clone())?;
+
+                match (string, suffix) {
+                    (Value::String(s), Value::String(suf)) => {
+                        Ok(Value::Bool(s.ends_with(&suf as &str)))
+                    }
+                    _ => Err(String::from("ends_with() requires two strings")),
+                }
+            }
+            "substring" => {
+                if args.len() != 3 {
+                    return Err(format!("substring() takes 3 arguments, got {}", args.len()));
+                }
+                let string = self.eval_expr(args[0].clone())?;
+                let start = self.eval_expr(args[1].clone())?.to_number()
+                    .ok_or("substring() start index must be a number")?;
+                let end = self.eval_expr(args[2].clone())?.to_number()
+                    .ok_or("substring() end index must be a number")?;
+
+                match string {
+                    Value::String(s) => {
+                        if start < 0 || end < 0 || start > end {
+                            return Err(String::from("Invalid substring indices"));
+                        }
+                        let start = start as usize;
+                        let end = end as usize;
+                        if end > s.len() {
+                            return Err(String::from("substring() index out of bounds"));
+                        }
+                        Ok(Value::String(String::from(&s[start..end])))
+                    }
+                    _ => Err(String::from("substring() requires a string")),
+                }
+            }
+            "pop" => {
+                if args.len() != 1 {
+                    return Err(format!("pop() takes 1 argument, got {}", args.len()));
+                }
+                let arr = self.eval_expr(args[0].clone())?;
+                match arr {
+                    Value::Array(mut elements) => {
+                        if elements.is_empty() {
+                            Err(String::from("Cannot pop from empty array"))
+                        } else {
+                            let last = elements.pop().unwrap();
+                            // Return array with last element (we return the popped value)
+                            Ok(last)
+                        }
+                    }
+                    _ => Err(String::from("pop() requires an array")),
+                }
+            }
+            "reverse" => {
+                if args.len() != 1 {
+                    return Err(format!("reverse() takes 1 argument, got {}", args.len()));
+                }
+                let arr = self.eval_expr(args[0].clone())?;
+                match arr {
+                    Value::Array(mut elements) => {
+                        elements.reverse();
+                        Ok(Value::Array(elements))
+                    }
+                    _ => Err(String::from("reverse() requires an array")),
+                }
+            }
+            "join" => {
+                if args.len() != 2 {
+                    return Err(format!("join() takes 2 arguments, got {}", args.len()));
+                }
+                let arr = self.eval_expr(args[0].clone())?;
+                let separator = self.eval_expr(args[1].clone())?;
+
+                match (arr, separator) {
+                    (Value::Array(elements), Value::String(sep)) => {
+                        let strings: Vec<String> = elements.iter()
+                            .map(|v| v.to_string())
+                            .collect();
+                        Ok(Value::String(strings.join(&sep as &str)))
+                    }
+                    _ => Err(String::from("join() requires an array and a string separator")),
+                }
+            }
             _ => {
                 // User-defined function
                 let func = self.functions.get(&name)
