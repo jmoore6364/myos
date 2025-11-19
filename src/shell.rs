@@ -89,6 +89,11 @@ impl Shell {
             "write" => self.cmd_write(args),
             // AI command
             "ai" => self.cmd_ai(args),
+            // Task/Scheduler commands
+            "ps" => self.cmd_ps(args),
+            "spawn" => self.cmd_spawn(args),
+            "kill" => self.cmd_kill(args),
+            "sched" => self.cmd_sched(args),
             "" => {},
             _ => {
                 println!("Unknown command: '{}'. Type 'help' for available commands.", command);
@@ -130,6 +135,12 @@ impl Shell {
         println!();
         println!("AI Commands:");
         println!("  ai <request>    - Natural language programming");
+        println!();
+        println!("Task Management:");
+        println!("  ps              - List all tasks");
+        println!("  spawn <name> <priority> - Create a new task");
+        println!("  kill <task_id>  - Terminate a task");
+        println!("  sched           - Show scheduler status");
         println!();
         println!("Other:");
         println!("  echo <text>     - Print text to the screen");
@@ -635,5 +646,98 @@ impl Shell {
             }
         }
         None
+    }
+
+    // Task Management Commands
+
+    fn cmd_ps(&self, _args: &[&str]) {
+        use crate::SCHEDULER;
+
+        let scheduler = SCHEDULER.lock();
+        let tasks = scheduler.list_tasks();
+
+        if tasks.is_empty() {
+            println!("No tasks running.");
+            return;
+        }
+
+        println!("Task List:");
+        println!("  ID    Name                State       Priority");
+        println!("  ─────────────────────────────────────────────────");
+
+        for task in tasks {
+            let state_str = match task.state() {
+                crate::task::TaskState::Ready => "Ready",
+                crate::task::TaskState::Running => "Running",
+                crate::task::TaskState::Waiting => "Waiting",
+                crate::task::TaskState::Terminated => "Terminated",
+            };
+            println!("  {:<5} {:<19} {:<11} {}",
+                task.id(),
+                task.name(),
+                state_str,
+                task.priority()
+            );
+        }
+    }
+
+    fn cmd_spawn(&self, args: &[&str]) {
+        use crate::SCHEDULER;
+        use crate::task::Task;
+        use alloc::string::ToString;
+
+        if args.is_empty() {
+            println!("Usage: spawn <name> [priority]");
+            return;
+        }
+
+        let name = args[0].to_string();
+        let priority = if args.len() > 1 {
+            args[1].parse::<u8>().unwrap_or(5)
+        } else {
+            5  // Default priority
+        };
+
+        let task = Task::new(name, priority);
+        let task_id = task.id();
+
+        let mut scheduler = SCHEDULER.lock();
+        scheduler.add_task(task);
+
+        println!("Task created with ID: {}", task_id);
+    }
+
+    fn cmd_kill(&self, args: &[&str]) {
+        use crate::SCHEDULER;
+
+        if args.is_empty() {
+            println!("Usage: kill <task_id>");
+            return;
+        }
+
+        let task_id = match args[0].parse::<u64>() {
+            Ok(id) => id,
+            Err(_) => {
+                println!("Invalid task ID: {}", args[0]);
+                return;
+            }
+        };
+
+        let mut scheduler = SCHEDULER.lock();
+        match scheduler.remove_task(task_id) {
+            Ok(_) => println!("Task {} terminated.", task_id),
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_sched(&self, _args: &[&str]) {
+        use crate::SCHEDULER;
+
+        let scheduler = SCHEDULER.lock();
+
+        println!("Scheduler Status:");
+        println!("  Total tasks:  {}", scheduler.task_count());
+        println!("  Ready tasks:  {}", scheduler.ready_task_count());
+        println!("  Scheduler:    Round-Robin");
     }
 }

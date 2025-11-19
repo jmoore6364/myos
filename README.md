@@ -10,9 +10,10 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 - **Interrupt Handling**: Hardware interrupts (keyboard, timer)
 - **VGA Text Mode**: Color terminal output with 16-color palette
 - **Keyboard Input**: Real-time PS/2 keyboard driver with full character support
+- **Task Scheduler**: Cooperative round-robin task scheduling
 
 ### User Environment
-- **Interactive Shell**: 35+ commands for system control
+- **Interactive Shell**: 39+ commands for system control
 - **Virtual File System**: In-memory VFS with Unix-like commands (ls, cd, cat, mkdir, touch, rm, write, exec)
 - **HAL Script Language**: Turing-complete language with 13 built-ins (see [HALSCRIPT.md](HALSCRIPT.md))
 - **Persistent REPL**: Variables and functions survive across commands
@@ -132,6 +133,14 @@ Once the OS boots, try these commands:
 > ls /scripts
 > exec /scripts/fibonacci.hal
 > exec /scripts/primes.hal
+
+# Task management
+> ps
+> spawn worker1 5
+> spawn worker2 10
+> ps
+> sched
+> kill 0
 
 # System commands
 > help

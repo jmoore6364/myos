@@ -18,10 +18,12 @@ mod time;
 mod shell;
 mod halscript;
 mod vfs;
+mod task;
 
 lazy_static! {
     pub static ref SHELL: Mutex<shell::Shell> = Mutex::new(shell::Shell::new());
     pub static ref HAL_REPL: Mutex<halscript::Interpreter> = Mutex::new(halscript::Interpreter::new());
+    pub static ref SCHEDULER: Mutex<task::Scheduler> = Mutex::new(task::Scheduler::new());
 }
 
 /// Entry point for the kernel
