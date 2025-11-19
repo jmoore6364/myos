@@ -24,6 +24,7 @@ mod vfs;
 
 lazy_static! {
     pub static ref SHELL: Mutex<shell::Shell> = Mutex::new(shell::Shell::new());
+    pub static ref HAL_REPL: Mutex<halscript::Interpreter> = Mutex::new(halscript::Interpreter::new());
 }
 
 /// Entry point for the kernel

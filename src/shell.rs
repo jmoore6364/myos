@@ -86,6 +86,8 @@ impl Shell {
             "touch" => self.cmd_touch(args),
             "rm" => self.cmd_rm(args),
             "write" => self.cmd_write(args),
+            // AI command
+            "ai" => self.cmd_ai(args),
             "" => {},
             _ => {
                 println!("Unknown command: '{}'. Type 'help' for available commands.", command);
@@ -123,6 +125,9 @@ impl Shell {
         println!("HAL Script:");
         println!("  run <code>      - Run HAL Script code");
         println!("  examples        - Show HAL Script examples");
+        println!();
+        println!("AI Commands:");
+        println!("  ai <request>    - Natural language programming");
         println!();
         println!("Other:");
         println!("  echo <text>     - Print text to the screen");
@@ -270,7 +275,7 @@ impl Shell {
 
         let code = args.join(" ");
 
-        use crate::halscript::{lexer::Lexer, parser::Parser, Interpreter};
+        use crate::halscript::{lexer::Lexer, parser::Parser};
 
         // Tokenize
         let mut lexer = Lexer::new(&code);
@@ -292,9 +297,9 @@ impl Shell {
             }
         };
 
-        // Execute
-        let mut interpreter = Interpreter::new();
-        if let Err(e) = interpreter.run(ast) {
+        // Execute with persistent REPL
+        let mut repl = crate::HAL_REPL.lock();
+        if let Err(e) = repl.run(ast) {
             println!("Runtime error: {}", e);
         }
     }
@@ -467,5 +472,115 @@ impl Shell {
         } else {
             println!("Written to: {}", filename);
         }
+    }
+
+    // AI command processor
+    fn cmd_ai(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: ai <request>");
+            println!();
+            println!("Examples:");
+            println!("  ai create a fibonacci function");
+            println!("  ai count from 1 to 10");
+            println!("  ai show prime numbers under 50");
+            println!("  ai calculate 15 factorial");
+            return;
+        }
+
+        let request = args.join(" ").to_lowercase();
+
+        println!("[AI] Processing: '{}'", request);
+
+        // Pattern matching for common requests
+        let code = if request.contains("fibonacci") || request.contains("fib") {
+            Some("fn fib(n) { if n < 2 { return n } return fib(n-1) + fib(n-2) }\nprint \"Fibonacci function created! Try: run print fib(10)\"")
+        } else if request.contains("prime") {
+            let number = Self::extract_number(&request).unwrap_or(100);
+            Some(format!("fn is_prime(n) {{ if n < 2 {{ return false }} i = 2 while i * i <= n {{ if n % i == 0 {{ return false }} i = i + 1 }} return true }}\nfor num in 2..{} {{ if is_prime(num) {{ print num }} }}", number).leak() as &str)
+        } else if request.contains("count") || request.contains("numbers") {
+            let start = if request.contains("from") { Self::extract_number(&request).unwrap_or(1) } else { 1 };
+            let end = if request.contains("to") { Self::extract_number_after_word(&request, "to").unwrap_or(10) } else { 10 };
+            Some(format!("for i in {}..{} {{ print i }}", start, end + 1).leak() as &str)
+        } else if request.contains("factorial") {
+            let n = Self::extract_number(&request).unwrap_or(10);
+            Some(format!("fn factorial(n) {{ if n <= 1 {{ return 1 }} return n * factorial(n - 1) }}\nprint factorial({})", n).leak() as &str)
+        } else if request.contains("sum") || request.contains("add") {
+            if request.contains("array") || request.contains("list") {
+                Some("arr = [1, 2, 3, 4, 5]\nsum = 0\nfor i in 0..len(arr) { sum = sum + arr[i] }\nprint sum")
+            } else {
+                Some("print \"Create a sum function? Try: ai sum an array\"")
+            }
+        } else if request.contains("hello") || request.contains("hi") {
+            Some("print \"Hello from MyOS! I'm your AI assistant.\"")
+        } else if request.contains("uptime") {
+            Some("print \"System uptime: \" + uptime() + \" seconds\"")
+        } else if request.contains("fizzbuzz") {
+            Some("for i in 1..101 { if i % 15 == 0 { print \"FizzBuzz\" } else if i % 3 == 0 { print \"Fizz\" } else if i % 5 == 0 { print \"Buzz\" } else { print i } }")
+        } else if request.contains("create") && request.contains("function") {
+            Some("print \"To create a function, use: run fn myfunction(param) { ... }\"")
+        } else if request.contains("help") || request.contains("what can you do") {
+            println!("I can help you write HAL Script code! Try:");
+            println!("  - ai create a fibonacci function");
+            println!("  - ai show prime numbers under 50");
+            println!("  - ai count from 1 to 100");
+            println!("  - ai calculate factorial");
+            println!("  - ai fizzbuzz");
+            return;
+        } else {
+            None
+        };
+
+        if let Some(generated_code) = code {
+            println!("[AI] Generated code:");
+            println!("{}", generated_code);
+            println!();
+            println!("[AI] Executing...");
+            println!();
+
+            use crate::halscript::{lexer::Lexer, parser::Parser};
+
+            let mut lexer = Lexer::new(generated_code);
+            let tokens = match lexer.tokenize() {
+                Ok(t) => t,
+                Err(e) => {
+                    println!("[AI] Error tokenizing: {}", e);
+                    return;
+                }
+            };
+
+            let mut parser = Parser::new(tokens);
+            let ast = match parser.parse() {
+                Ok(a) => a,
+                Err(e) => {
+                    println!("[AI] Error parsing: {}", e);
+                    return;
+                }
+            };
+
+            let mut repl = crate::HAL_REPL.lock();
+            if let Err(e) = repl.run(ast) {
+                println!("[AI] Runtime error: {}", e);
+            }
+        } else {
+            println!("[AI] I'm not sure how to help with that yet.");
+            println!("[AI] Try 'ai help' to see what I can do!");
+        }
+    }
+
+    fn extract_number(text: &str) -> Option<i64> {
+        text.split_whitespace()
+            .find_map(|word| word.parse::<i64>().ok())
+    }
+
+    fn extract_number_after_word(text: &str, word: &str) -> Option<i64> {
+        let parts: Vec<&str> = text.split_whitespace().collect();
+        for (i, &w) in parts.iter().enumerate() {
+            if w == word && i + 1 < parts.len() {
+                if let Ok(n) = parts[i + 1].parse::<i64>() {
+                    return Some(n);
+                }
+            }
+        }
+        None
     }
 }
