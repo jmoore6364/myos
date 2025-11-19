@@ -312,6 +312,82 @@ impl Interpreter {
                 }
                 Ok(Value::Number(x))
             }
+            "str" => {
+                if args.len() != 1 {
+                    return Err(format!("str() takes 1 argument, got {}", args.len()));
+                }
+                let value = self.eval_expr(args[0].clone())?;
+                Ok(Value::String(value.to_string()))
+            }
+            "num" => {
+                if args.len() != 1 {
+                    return Err(format!("num() takes 1 argument, got {}", args.len()));
+                }
+                let value = self.eval_expr(args[0].clone())?;
+                match value {
+                    Value::Number(n) => Ok(Value::Number(n)),
+                    Value::String(s) => {
+                        s.parse::<i64>()
+                            .map(Value::Number)
+                            .map_err(|_| format!("Cannot convert '{}' to number", s))
+                    }
+                    Value::Bool(b) => Ok(Value::Number(if b { 1 } else { 0 })),
+                    _ => Err(String::from("Cannot convert to number")),
+                }
+            }
+            "range" => {
+                if args.len() != 2 {
+                    return Err(format!("range() takes 2 arguments, got {}", args.len()));
+                }
+                let start = self.eval_expr(args[0].clone())?.to_number()
+                    .ok_or("range() requires numbers")?;
+                let end = self.eval_expr(args[1].clone())?.to_number()
+                    .ok_or("range() requires numbers")?;
+
+                let mut arr = Vec::new();
+                for i in start..end {
+                    arr.push(Value::Number(i));
+                }
+                Ok(Value::Array(arr))
+            }
+            "push" => {
+                if args.len() != 2 {
+                    return Err(format!("push() takes 2 arguments, got {}", args.len()));
+                }
+                let arr_expr = &args[0];
+                let value = self.eval_expr(args[1].clone())?;
+
+                // This is a limitation - we can't modify the original array
+                // without reference support, so we'll return a new array
+                let arr = self.eval_expr(arr_expr.clone())?;
+                match arr {
+                    Value::Array(mut elements) => {
+                        elements.push(value);
+                        Ok(Value::Array(elements))
+                    }
+                    _ => Err(String::from("push() requires an array")),
+                }
+            }
+            "sum" => {
+                if args.len() != 1 {
+                    return Err(format!("sum() takes 1 argument, got {}", args.len()));
+                }
+                let arr = self.eval_expr(args[0].clone())?;
+                match arr {
+                    Value::Array(elements) => {
+                        let mut total = 0i64;
+                        for elem in elements {
+                            if let Some(n) = elem.to_number() {
+                                total += n;
+                            } else {
+                                return Err(String::from("sum() requires array of numbers"));
+                            }
+                        }
+                        Ok(Value::Number(total))
+                    }
+                    _ => Err(String::from("sum() requires an array")),
+                }
+            }
             _ => {
                 // User-defined function
                 let func = self.functions.get(&name)

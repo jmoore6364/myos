@@ -286,3 +286,7 @@ impl Lexer {
         self.position >= self.input.len()
     }
 }
+
+#[cfg(test)]
+#[path = "lexer_tests.rs"]
+mod tests;

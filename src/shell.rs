@@ -76,6 +76,7 @@ impl Shell {
             "panic" => self.cmd_panic(args),
             "about" => self.cmd_about(args),
             "run" => self.cmd_run(args),
+            "exec" => self.cmd_exec(args),
             "examples" => self.cmd_examples(args),
             // File system commands
             "ls" => self.cmd_ls(args),
@@ -124,6 +125,7 @@ impl Shell {
         println!();
         println!("HAL Script:");
         println!("  run <code>      - Run HAL Script code");
+        println!("  exec <file>     - Execute .hal script file");
         println!("  examples        - Show HAL Script examples");
         println!();
         println!("AI Commands:");
@@ -276,6 +278,56 @@ impl Shell {
         let code = args.join(" ");
 
         use crate::halscript::{lexer::Lexer, parser::Parser};
+
+        // Tokenize
+        let mut lexer = Lexer::new(&code);
+        let tokens = match lexer.tokenize() {
+            Ok(t) => t,
+            Err(e) => {
+                println!("Lexer error: {}", e);
+                return;
+            }
+        };
+
+        // Parse
+        let mut parser = Parser::new(tokens);
+        let ast = match parser.parse() {
+            Ok(a) => a,
+            Err(e) => {
+                println!("Parser error: {}", e);
+                return;
+            }
+        };
+
+        // Execute with persistent REPL
+        let mut repl = crate::HAL_REPL.lock();
+        if let Err(e) = repl.run(ast) {
+            println!("Runtime error: {}", e);
+        }
+    }
+
+    fn cmd_exec(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: exec <file.hal>");
+            println!("Example: exec /scripts/fibonacci.hal");
+            return;
+        }
+
+        use crate::vfs::VFS;
+        use crate::halscript::{lexer::Lexer, parser::Parser};
+
+        // Read the file
+        let vfs = VFS.lock();
+        let code = match vfs.read_file(args[0]) {
+            Ok(c) => c,
+            Err(e) => {
+                println!("Error reading file: {}", e);
+                return;
+            }
+        };
+        drop(vfs);
+
+        println!("[Executing {}]", args[0]);
 
         // Tokenize
         let mut lexer = Lexer::new(&code);

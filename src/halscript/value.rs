@@ -104,3 +104,7 @@ impl fmt::Display for Value {
         write!(f, "{}", self.to_string())
     }
 }
+
+#[cfg(test)]
+#[path = "value_tests.rs"]
+mod tests;

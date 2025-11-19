@@ -67,10 +67,41 @@ impl VirtualFileSystem {
         vfs.root.insert(String::from("/tmp"), FileNode::new_directory(String::from("tmp")));
 
         // Create a welcome file
-        let welcome = "Welcome to MyOS!\n\nThis is a bare-metal operating system with:\n- HAL Script programming language\n- Interactive shell\n- Virtual file system\n- AI integration (coming soon)\n\nType 'help' for available commands.\n";
+        let welcome = "Welcome to MyOS!\n\nThis is a bare-metal operating system with:\n- HAL Script programming language\n- Interactive shell\n- Virtual file system\n- AI integration\n\nType 'help' for available commands.\nTry 'exec /scripts/fibonacci.hal' to run an example!\n";
         vfs.root.insert(
             String::from("/home/welcome.txt"),
             FileNode::new_file(String::from("welcome.txt"), String::from(welcome))
+        );
+
+        // Create example HAL scripts
+        let fib_script = "# Fibonacci sequence generator\nfn fib(n) {\n    if n < 2 {\n        return n\n    }\n    return fib(n-1) + fib(n-2)\n}\n\nprint \"Fibonacci sequence:\"\nfor i in 0..15 {\n    print fib(i)\n}\n";
+        vfs.root.insert(
+            String::from("/scripts/fibonacci.hal"),
+            FileNode::new_file(String::from("fibonacci.hal"), String::from(fib_script))
+        );
+
+        let primes_script = "# Prime number generator\nfn is_prime(n) {\n    if n < 2 {\n        return false\n    }\n    i = 2\n    while i * i <= n {\n        if n % i == 0 {\n            return false\n        }\n        i = i + 1\n    }\n    return true\n}\n\nprint \"Prime numbers under 100:\"\nfor num in 2..100 {\n    if is_prime(num) {\n        print num\n    }\n}\n";
+        vfs.root.insert(
+            String::from("/scripts/primes.hal"),
+            FileNode::new_file(String::from("primes.hal"), String::from(primes_script))
+        );
+
+        let factorial_script = "# Factorial calculator\nfn factorial(n) {\n    if n <= 1 {\n        return 1\n    }\n    return n * factorial(n - 1)\n}\n\nprint \"Factorials:\"\nfor i in 0..11 {\n    result = factorial(i)\n    print str(i) + \"! = \" + str(result)\n}\n";
+        vfs.root.insert(
+            String::from("/scripts/factorial.hal"),
+            FileNode::new_file(String::from("factorial.hal"), String::from(factorial_script))
+        );
+
+        let fizzbuzz_script = "# FizzBuzz\nprint \"FizzBuzz:\"\nfor i in 1..101 {\n    if i % 15 == 0 {\n        print \"FizzBuzz\"\n    } else if i % 3 == 0 {\n        print \"Fizz\"\n    } else if i % 5 == 0 {\n        print \"Buzz\"\n    } else {\n        print i\n    }\n}\n";
+        vfs.root.insert(
+            String::from("/scripts/fizzbuzz.hal"),
+            FileNode::new_file(String::from("fizzbuzz.hal"), String::from(fizzbuzz_script))
+        );
+
+        let arrays_script = "# Array operations demo\narr = [5, 2, 8, 1, 9, 3]\n\nprint \"Array: \" + str(arr)\nprint \"Length: \" + str(len(arr))\nprint \"Sum: \" + str(sum(arr))\n\n# Find min and max\nmin_val = arr[0]\nmax_val = arr[0]\nfor i in 0..len(arr) {\n    min_val = min(min_val, arr[i])\n    max_val = max(max_val, arr[i])\n}\nprint \"Min: \" + str(min_val)\nprint \"Max: \" + str(max_val)\n";
+        vfs.root.insert(
+            String::from("/scripts/arrays.hal"),
+            FileNode::new_file(String::from("arrays.hal"), String::from(arrays_script))
         );
 
         vfs
