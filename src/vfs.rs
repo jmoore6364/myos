@@ -104,6 +104,30 @@ impl VirtualFileSystem {
             FileNode::new_file(String::from("arrays.hal"), String::from(arrays_script))
         );
 
+        // Create /lib directory for library modules
+        vfs.root.insert(String::from("/lib"), FileNode::new_directory(String::from("lib")));
+
+        // Math library
+        let math_lib = "# Math Library\n\nfn factorial(n) {\n    if n <= 1 {\n        return 1\n    }\n    return n * factorial(n - 1)\n}\n\nfn gcd(a, b) {\n    while b != 0 {\n        temp = b\n        b = a % b\n        a = temp\n    }\n    return abs(a)\n}\n\nfn lcm(a, b) {\n    return abs(a * b) / gcd(a, b)\n}\n\nfn is_prime(n) {\n    if n < 2 {\n        return false\n    }\n    i = 2\n    while i * i <= n {\n        if n % i == 0 {\n            return false\n        }\n        i = i + 1\n    }\n    return true\n}\n";
+        vfs.root.insert(
+            String::from("/lib/math.hal"),
+            FileNode::new_file(String::from("math.hal"), String::from(math_lib))
+        );
+
+        // String utilities library
+        let string_lib = "# String Utilities Library\n\nfn reverse_string(s) {\n    chars = split(s, \"\")\n    reversed = reverse(chars)\n    return join(reversed, \"\")\n}\n\nfn count_words(s) {\n    trimmed = trim(s)\n    if len(trimmed) == 0 {\n        return 0\n    }\n    words = split(trimmed, \" \")\n    return len(words)\n}\n\nfn title_case(s) {\n    words = split(s, \" \")\n    result = []\n    for word in words {\n        if len(word) > 0 {\n            first = upper(substring(word, 0, 1))\n            rest = lower(substring(word, 1, len(word)))\n            push(result, first + rest)\n        }\n    }\n    return join(result, \" \")\n}\n";
+        vfs.root.insert(
+            String::from("/lib/string.hal"),
+            FileNode::new_file(String::from("string.hal"), String::from(string_lib))
+        );
+
+        // Example app using libraries
+        let demo_app = "# Demo Application\nimport \"/lib/math.hal\"\nimport \"/lib/string.hal\"\n\nprint \"=== Math Library Demo ===\"\nprint \"Factorial of 5: \" + str(factorial(5))\nprint \"GCD of 48 and 18: \" + str(gcd(48, 18))\nprint \"LCM of 12 and 15: \" + str(lcm(12, 15))\nprint \"Is 17 prime? \" + str(is_prime(17))\nprint \"Is 20 prime? \" + str(is_prime(20))\n\nprint \"\"\nprint \"=== String Library Demo ===\"\ntext = \"hello world\"\nprint \"Original: \" + text\nprint \"Reversed: \" + reverse_string(text)\nprint \"Title case: \" + title_case(text)\nprint \"Word count: \" + str(count_words(text))\n";
+        vfs.root.insert(
+            String::from("/scripts/demo_app.hal"),
+            FileNode::new_file(String::from("demo_app.hal"), String::from(demo_app))
+        );
+
         vfs
     }
 

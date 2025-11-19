@@ -76,6 +76,30 @@ fn factorial(n) {
 }
 ```
 
+### Modules and Imports
+
+Import other HAL Script files to reuse code across programs:
+
+```halscript
+# Import a library module
+import "/lib/math.hal"
+
+# Now you can use functions from math.hal
+result = factorial(10)
+print "10! = " + str(result)
+
+# Import multiple modules
+import "/lib/string.hal"
+text = title_case("hello world")
+print text  # "Hello World"
+```
+
+**Module caching:** Each module is loaded only once per session, preventing circular imports and improving performance.
+
+**Available Libraries:**
+- `/lib/math.hal` - Mathematical functions (factorial, gcd, lcm, is_prime)
+- `/lib/string.hal` - String utilities (reverse_string, count_words, title_case)
+
 ### Conditionals
 
 ```halscript

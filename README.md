@@ -15,10 +15,11 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 ### User Environment
 - **Interactive Shell**: 39+ commands for system control
 - **Virtual File System**: In-memory VFS with Unix-like commands (ls, cd, cat, mkdir, touch, rm, write, exec)
-- **HAL Script Language**: Turing-complete language with 32 built-ins (see [HALSCRIPT.md](HALSCRIPT.md))
+- **HAL Script Language**: Turing-complete language with 32 built-ins and module system (see [HALSCRIPT.md](HALSCRIPT.md))
 - **Persistent REPL**: Variables and functions survive across commands
 - **AI Natural Language Programming**: Convert English to code with `ai` command
-- **Example Scripts**: 5 pre-loaded programs in `/scripts` directory
+- **Example Scripts**: 6 pre-loaded programs in `/scripts` directory
+- **Standard Libraries**: Math and string utilities in `/lib` directory
 - **Unit Tests**: Comprehensive test suite for language components
 
 ### Development
@@ -146,6 +147,12 @@ Once the OS boots, try these commands:
 > ls /scripts
 > exec /scripts/fibonacci.hal
 > exec /scripts/primes.hal
+
+# Import and use library modules
+> ls /lib
+> exec /scripts/demo_app.hal
+> run import "/lib/math.hal"
+> run print factorial(6)
 
 # Task management
 > ps

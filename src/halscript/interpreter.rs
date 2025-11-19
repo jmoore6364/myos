@@ -19,6 +19,7 @@ pub struct Interpreter {
     return_value: Option<Value>,
     break_flag: bool,
     continue_flag: bool,
+    loaded_modules: alloc::collections::BTreeSet<String>,
 }
 
 impl Interpreter {
@@ -30,6 +31,7 @@ impl Interpreter {
             return_value: None,
             break_flag: false,
             continue_flag: false,
+            loaded_modules: alloc::collections::BTreeSet::new(),
         }
     }
 
@@ -58,6 +60,36 @@ impl Interpreter {
             Stmt::Print(expr) => {
                 let value = self.eval_expr(expr)?;
                 println!("{}", value);
+                Ok(())
+            }
+            Stmt::Import(path) => {
+                // Check if already loaded
+                if self.loaded_modules.contains(&path) {
+                    return Ok(());
+                }
+
+                // Read module from VFS
+                let vfs = crate::vfs::VFS.lock();
+                let module_code = vfs.read_file(&path)
+                    .map_err(|e| format!("Failed to import {}: {}", path, e))?;
+                drop(vfs);  // Release the lock
+
+                // Parse the module
+                let mut lexer = super::lexer::Lexer::new(&module_code);
+                let tokens = lexer.tokenize()
+                    .map_err(|e| format!("Failed to tokenize {}: {}", path, e))?;
+                let mut parser = super::parser::Parser::new(tokens);
+                let statements = parser.parse()
+                    .map_err(|e| format!("Failed to parse {}: {}", path, e))?;
+
+                // Mark as loaded before executing (prevent circular imports)
+                self.loaded_modules.insert(path.clone());
+
+                // Execute the module
+                for stmt in statements {
+                    self.execute_stmt(stmt)?;
+                }
+
                 Ok(())
             }
             Stmt::If(condition, then_branch, else_branch) => {

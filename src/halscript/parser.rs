@@ -40,6 +40,7 @@ pub enum Stmt {
     For(String, Expr, Expr, Vec<Stmt>),
     Return(Option<Expr>),
     Function(String, Vec<String>, Vec<Stmt>),
+    Import(String),
     Break,
     Continue,
     Expr(Expr),
@@ -74,6 +75,7 @@ impl Parser {
         match self.peek() {
             Token::Let => self.let_stmt(),
             Token::Print => self.print_stmt(),
+            Token::Import => self.import_stmt(),
             Token::If => self.if_stmt(),
             Token::While => self.while_stmt(),
             Token::For => self.for_stmt(),
@@ -111,6 +113,14 @@ impl Parser {
         self.expect(Token::Print)?;
         let expr = self.expression()?;
         Ok(Stmt::Print(expr))
+    }
+
+    fn import_stmt(&mut self) -> Result<Stmt, String> {
+        self.expect(Token::Import)?;
+        match self.advance() {
+            Token::String(path) => Ok(Stmt::Import(path)),
+            token => Err(format!("Expected string path after import, got {:?}", token)),
+        }
     }
 
     fn if_stmt(&mut self) -> Result<Stmt, String> {
