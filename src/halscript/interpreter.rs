@@ -242,6 +242,76 @@ impl Interpreter {
             "uptime" => {
                 Ok(Value::Number(crate::time::uptime_seconds() as i64))
             }
+            "abs" => {
+                if args.len() != 1 {
+                    return Err(format!("abs() takes 1 argument, got {}", args.len()));
+                }
+                let value = self.eval_expr(args[0].clone())?;
+                match value.to_number() {
+                    Some(n) => Ok(Value::Number(n.abs())),
+                    None => Err(String::from("abs() requires a number")),
+                }
+            }
+            "min" => {
+                if args.len() != 2 {
+                    return Err(format!("min() takes 2 arguments, got {}", args.len()));
+                }
+                let a = self.eval_expr(args[0].clone())?.to_number()
+                    .ok_or("min() requires numbers")?;
+                let b = self.eval_expr(args[1].clone())?.to_number()
+                    .ok_or("min() requires numbers")?;
+                Ok(Value::Number(if a < b { a } else { b }))
+            }
+            "max" => {
+                if args.len() != 2 {
+                    return Err(format!("max() takes 2 arguments, got {}", args.len()));
+                }
+                let a = self.eval_expr(args[0].clone())?.to_number()
+                    .ok_or("max() requires numbers")?;
+                let b = self.eval_expr(args[1].clone())?.to_number()
+                    .ok_or("max() requires numbers")?;
+                Ok(Value::Number(if a > b { a } else { b }))
+            }
+            "pow" => {
+                if args.len() != 2 {
+                    return Err(format!("pow() takes 2 arguments, got {}", args.len()));
+                }
+                let base = self.eval_expr(args[0].clone())?.to_number()
+                    .ok_or("pow() requires numbers")?;
+                let exp = self.eval_expr(args[1].clone())?.to_number()
+                    .ok_or("pow() requires numbers")?;
+
+                if exp < 0 {
+                    return Err(String::from("pow() does not support negative exponents"));
+                }
+
+                let mut result = 1i64;
+                for _ in 0..exp {
+                    result *= base;
+                }
+                Ok(Value::Number(result))
+            }
+            "sqrt" => {
+                if args.len() != 1 {
+                    return Err(format!("sqrt() takes 1 argument, got {}", args.len()));
+                }
+                let n = self.eval_expr(args[0].clone())?.to_number()
+                    .ok_or("sqrt() requires a number")?;
+
+                if n < 0 {
+                    return Err(String::from("sqrt() of negative number"));
+                }
+
+                // Integer square root using Newton's method
+                if n == 0 { return Ok(Value::Number(0)); }
+                let mut x = n;
+                let mut y = (x + 1) / 2;
+                while y < x {
+                    x = y;
+                    y = (x + n / x) / 2;
+                }
+                Ok(Value::Number(x))
+            }
             _ => {
                 // User-defined function
                 let func = self.functions.get(&name)

@@ -4,15 +4,24 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 
 ## Features
 
+### Core Kernel
 - **Bare Metal Boot**: Boots directly on x86_64 hardware
 - **Memory Management**: Full paging and heap allocation
 - **Interrupt Handling**: Hardware interrupts (keyboard, timer)
-- **VGA Text Mode**: Color terminal output
-- **Keyboard Input**: Real-time keyboard driver
-- **Interactive Shell**: Command-line interface with built-in commands
-- **HAL Script**: Built-in programming language (see [HALSCRIPT.md](HALSCRIPT.md))
+- **VGA Text Mode**: Color terminal output with 16-color palette
+- **Keyboard Input**: Real-time PS/2 keyboard driver with full character support
+
+### User Environment
+- **Interactive Shell**: Full-featured command-line interface
+- **Virtual File System**: In-memory VFS with Unix-like file operations (ls, cd, cat, mkdir, touch, rm, write)
+- **HAL Script Language**: Built-in programming language with functions, loops, arrays (see [HALSCRIPT.md](HALSCRIPT.md))
+- **Persistent REPL**: Variables and functions persist across commands
+- **AI Natural Language Programming**: Convert English to code with `ai` command
+
+### Development
 - **Rust Powered**: Memory-safe kernel with zero-cost abstractions
 - **WebAssembly Ready**: Can be compiled to WASM for browser demos
+- **Extensible**: Easy to add new commands and features
 
 ## Architecture
 
@@ -26,13 +35,18 @@ MyOS
 │   ├── VGA Buffer Driver
 │   └── Keyboard Driver
 ├── Shell & Scripting
-│   ├── Interactive Shell
-│   ├── HAL Script Language
-│   └── Built-in Commands
+│   ├── Interactive Shell (30+ commands)
+│   ├── HAL Script Language (full Turing-complete)
+│   ├── Persistent REPL
+│   └── AI Natural Language Processor
+├── File System
+│   ├── Virtual File System (VFS)
+│   ├── Directory Tree (/home, /scripts, /tmp)
+│   └── Unix-like Commands
 ├── Planned Features
 │   ├── Task Scheduler
-│   ├── Virtual File System
-│   └── AI Integration Layer
+│   ├── Disk Drivers (ATA/AHCI)
+│   └── Network Stack
 ```
 
 ## Prerequisites
@@ -85,6 +99,39 @@ cargo run
 
 # Or manually:
 qemu-system-x86_64 -drive format=raw,file=target/x86_64-myos/debug/bootimage-myos.bin
+```
+
+## Quick Start Guide
+
+Once the OS boots, try these commands:
+
+```bash
+# File system
+> ls /
+> cd /home
+> cat welcome.txt
+> mkdir /scripts
+> write /scripts/hello.hal "print \"Hello, World!\""
+> cat /scripts/hello.hal
+
+# HAL Script programming
+> run x = 42
+> run print x * 2
+> run fn fib(n) { if n < 2 { return n } return fib(n-1) + fib(n-2) }
+> run print fib(10)
+
+# AI natural language programming
+> ai create a fibonacci function
+> ai show prime numbers under 50
+> ai count from 1 to 100
+> ai calculate 10 factorial
+
+# System commands
+> help
+> about
+> sysinfo
+> uptime
+> colors
 ```
 
 ### On Real Hardware (USB Boot)
@@ -155,14 +202,17 @@ qemu-system-x86_64 \
 
 ### Phase 1: Core Kernel ✅
 - [x] Bootloader integration
-- [x] VGA text output
-- [x] Interrupt handling
-- [x] Memory management
-- [x] Keyboard input
-- [x] Interactive shell
-- [x] HAL Script language
+- [x] VGA text output with 16 colors
+- [x] Interrupt handling (IDT, GDT, PIC)
+- [x] Memory management (paging + heap)
+- [x] Keyboard input (PS/2 driver)
+- [x] Interactive shell with 30+ commands
+- [x] HAL Script programming language
+- [x] Virtual file system (VFS)
+- [x] Persistent REPL
+- [x] AI natural language programming
 
-### Phase 2: Process Management (In Progress)
+### Phase 2: Process Management (Next)
 - [ ] Task scheduler
 - [ ] Multitasking
 - [ ] Process isolation
