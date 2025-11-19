@@ -12,11 +12,13 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 - **Keyboard Input**: Real-time PS/2 keyboard driver with full character support
 
 ### User Environment
-- **Interactive Shell**: Full-featured command-line interface
-- **Virtual File System**: In-memory VFS with Unix-like file operations (ls, cd, cat, mkdir, touch, rm, write)
-- **HAL Script Language**: Built-in programming language with functions, loops, arrays (see [HALSCRIPT.md](HALSCRIPT.md))
-- **Persistent REPL**: Variables and functions persist across commands
+- **Interactive Shell**: 35+ commands for system control
+- **Virtual File System**: In-memory VFS with Unix-like commands (ls, cd, cat, mkdir, touch, rm, write, exec)
+- **HAL Script Language**: Turing-complete language with 13 built-ins (see [HALSCRIPT.md](HALSCRIPT.md))
+- **Persistent REPL**: Variables and functions survive across commands
 - **AI Natural Language Programming**: Convert English to code with `ai` command
+- **Example Scripts**: 5 pre-loaded programs in `/scripts` directory
+- **Unit Tests**: Comprehensive test suite for language components
 
 ### Development
 - **Rust Powered**: Memory-safe kernel with zero-cost abstractions
@@ -126,12 +128,27 @@ Once the OS boots, try these commands:
 > ai count from 1 to 100
 > ai calculate 10 factorial
 
+# Execute scripts from VFS
+> ls /scripts
+> exec /scripts/fibonacci.hal
+> exec /scripts/primes.hal
+
 # System commands
 > help
 > about
 > sysinfo
 > uptime
 > colors
+```
+
+## Built-in HAL Script Functions (13 total)
+
+**String/Type:** `len()`, `str()`, `num()`
+**Math:** `abs()`, `min()`, `max()`, `pow()`, `sqrt()`
+**Array:** `range()`, `push()`, `sum()`
+**System:** `uptime()`
+
+See [HALSCRIPT.md](HALSCRIPT.md) for complete language reference.
 ```
 
 ### On Real Hardware (USB Boot)

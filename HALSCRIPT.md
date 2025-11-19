@@ -160,21 +160,113 @@ x = 10  # This is also a comment
 
 ## Built-in Functions
 
-### `len(value)`
+HAL Script provides 13 powerful built-in functions:
 
+### String & Type Conversion
+
+#### `len(value)`
 Returns the length of a string or array:
-
 ```halscript
 print len("hello")      # 5
 print len([1, 2, 3])    # 3
 ```
 
-### `uptime()`
-
-Returns system uptime in seconds:
-
+#### `str(value)`
+Converts any value to a string:
 ```halscript
-print uptime()  # 42 (seconds since boot)
+print str(42)           # "42"
+print str(true)         # "true"
+print str([1, 2, 3])    # "[1, 2, 3]"
+```
+
+#### `num(value)`
+Parses a number from a string or converts boolean to number:
+```halscript
+x = num("42")           # 42
+y = num(true)           # 1
+z = num(false)          # 0
+```
+
+### Math Functions
+
+#### `abs(n)`
+Returns the absolute value:
+```halscript
+print abs(-42)          # 42
+print abs(10)           # 10
+```
+
+#### `min(a, b)`
+Returns the smaller of two numbers:
+```halscript
+print min(5, 10)        # 5
+```
+
+#### `max(a, b)`
+Returns the larger of two numbers:
+```halscript
+print max(5, 10)        # 10
+```
+
+#### `pow(base, exp)`
+Raises base to the power of exp:
+```halscript
+print pow(2, 10)        # 1024
+print pow(3, 3)         # 27
+```
+
+#### `sqrt(n)`
+Returns integer square root using Newton's method:
+```halscript
+print sqrt(144)         # 12
+print sqrt(100)         # 10
+```
+
+### Array Functions
+
+#### `range(start, end)`
+Creates an array of numbers from start to end (exclusive):
+```halscript
+arr = range(0, 5)       # [0, 1, 2, 3, 4]
+arr = range(5, 10)      # [5, 6, 7, 8, 9]
+```
+
+#### `push(array, value)`
+Returns a new array with value added:
+```halscript
+arr = [1, 2, 3]
+arr2 = push(arr, 4)     # [1, 2, 3, 4]
+```
+
+#### `sum(array)`
+Sums all numbers in an array:
+```halscript
+print sum([1, 2, 3, 4, 5])  # 15
+```
+
+### System Functions
+
+#### `uptime()`
+Returns system uptime in seconds:
+```halscript
+print uptime()          # 42 (seconds since boot)
+```
+
+## Running Scripts from Files
+
+You can write HAL scripts to the VFS and execute them:
+
+```bash
+# Write a script
+> write /home/test.hal "print \"Hello from file!\""
+
+# Execute it
+> exec /home/test.hal
+
+# Pre-loaded examples
+> ls /scripts
+> exec /scripts/fibonacci.hal
+> exec /scripts/primes.hal
 ```
 
 ## Example Programs
