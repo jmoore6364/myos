@@ -318,7 +318,7 @@ impl Shell {
 
         // Read the file
         let vfs = VFS.lock();
-        let code = match vfs.read_file(args[0]) {
+        let code: String = match vfs.read_file(args[0]) {
             Ok(c) => c,
             Err(e) => {
                 println!("Error reading file: {}", e);
@@ -408,6 +408,7 @@ impl Shell {
 
         match vfs.list_directory(actual_path) {
             Ok(entries) => {
+                let entries: Vec<_> = entries;
                 if entries.is_empty() {
                     println!("Empty directory");
                 } else {

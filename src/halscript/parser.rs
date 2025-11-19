@@ -38,6 +38,8 @@ pub enum Stmt {
     For(String, Expr, Expr, Vec<Stmt>),
     Return(Option<Expr>),
     Function(String, Vec<String>, Vec<Stmt>),
+    Break,
+    Continue,
     Expr(Expr),
 }
 
@@ -74,6 +76,8 @@ impl Parser {
             Token::While => self.while_stmt(),
             Token::For => self.for_stmt(),
             Token::Return => self.return_stmt(),
+            Token::Break => self.break_stmt(),
+            Token::Continue => self.continue_stmt(),
             Token::Fn => self.function_stmt(),
             Token::Ident(_) => {
                 if self.peek_ahead(1) == Some(&Token::Eq) {
@@ -156,6 +160,16 @@ impl Parser {
         } else {
             Ok(Stmt::Return(Some(self.expression()?)))
         }
+    }
+
+    fn break_stmt(&mut self) -> Result<Stmt, String> {
+        self.expect(Token::Break)?;
+        Ok(Stmt::Break)
+    }
+
+    fn continue_stmt(&mut self) -> Result<Stmt, String> {
+        self.expect(Token::Continue)?;
+        Ok(Stmt::Continue)
     }
 
     fn function_stmt(&mut self) -> Result<Stmt, String> {

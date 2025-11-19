@@ -21,6 +21,8 @@ pub enum Token {
     True,
     False,
     Null,
+    Break,
+    Continue,
 
     // Operators
     Plus,
@@ -250,6 +252,8 @@ impl Lexer {
             "true" => Token::True,
             "false" => Token::False,
             "null" => Token::Null,
+            "break" => Token::Break,
+            "continue" => Token::Continue,
             _ => Token::Ident(ident),
         }
     }

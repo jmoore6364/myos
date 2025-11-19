@@ -17,6 +17,8 @@ pub struct Interpreter {
     functions: BTreeMap<String, Function>,
     locals: Vec<BTreeMap<String, Value>>,
     return_value: Option<Value>,
+    break_flag: bool,
+    continue_flag: bool,
 }
 
 impl Interpreter {
@@ -26,6 +28,8 @@ impl Interpreter {
             functions: BTreeMap::new(),
             locals: Vec::new(),
             return_value: None,
+            break_flag: false,
+            continue_flag: false,
         }
     }
 
@@ -82,6 +86,18 @@ impl Interpreter {
                         if self.return_value.is_some() {
                             return Ok(());
                         }
+                        if self.break_flag {
+                            self.break_flag = false;
+                            return Ok(());
+                        }
+                        if self.continue_flag {
+                            self.continue_flag = false;
+                            break;
+                        }
+                    }
+                    if self.break_flag {
+                        self.break_flag = false;
+                        break;
                     }
                 }
                 Ok(())
@@ -101,6 +117,18 @@ impl Interpreter {
                         if self.return_value.is_some() {
                             return Ok(());
                         }
+                        if self.break_flag {
+                            self.break_flag = false;
+                            return Ok(());
+                        }
+                        if self.continue_flag {
+                            self.continue_flag = false;
+                            break;
+                        }
+                    }
+                    if self.break_flag {
+                        self.break_flag = false;
+                        break;
                     }
                 }
                 Ok(())
@@ -111,6 +139,14 @@ impl Interpreter {
                 } else {
                     Value::Null
                 });
+                Ok(())
+            }
+            Stmt::Break => {
+                self.break_flag = true;
+                Ok(())
+            }
+            Stmt::Continue => {
+                self.continue_flag = true;
                 Ok(())
             }
             Stmt::Function(name, params, body) => {

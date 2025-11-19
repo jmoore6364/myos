@@ -148,7 +148,9 @@ Once the OS boots, try these commands:
 **Array:** `range()`, `push()`, `sum()`
 **System:** `uptime()`
 
-See [HALSCRIPT.md](HALSCRIPT.md) for complete language reference.
+**Control Flow:** `break`, `continue` (for loops and while loops)
+
+See [HALSCRIPT.md](HALSCRIPT.md) for complete language reference with examples.
 ```
 
 ### On Real Hardware (USB Boot)

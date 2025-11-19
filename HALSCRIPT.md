@@ -125,6 +125,51 @@ while count < 5 {
 }
 ```
 
+### Break and Continue
+
+**Break statement** - exits the loop early:
+
+```halscript
+# Find first even number
+for i in 1..100 {
+    if i % 2 == 0 {
+        print "First even: " + str(i)
+        break
+    }
+}
+
+# Infinite loop with break
+count = 0
+while true {
+    count = count + 1
+    if count >= 10 {
+        break
+    }
+}
+```
+
+**Continue statement** - skips to next iteration:
+
+```halscript
+# Print only odd numbers
+for i in 1..11 {
+    if i % 2 == 0 {
+        continue
+    }
+    print i  # Only prints odd numbers
+}
+
+# Skip multiples of 3
+count = 0
+while count < 10 {
+    count = count + 1
+    if count % 3 == 0 {
+        continue
+    }
+    print count
+}
+```
+
 ### Arrays
 
 ```halscript
@@ -413,10 +458,10 @@ HAL Script is designed to be:
 - [ ] String methods (split, trim, etc.)
 - [ ] File I/O operations
 - [ ] More built-in functions
-- [ ] Break/continue statements
+- [x] Break/continue statements ✓ Implemented
 - [ ] Error handling (try/catch)
 - [ ] Module system
-- [ ] AI integration for natural language programming
+- [x] AI integration for natural language programming ✓ Implemented
 
 ## Performance
 
