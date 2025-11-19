@@ -19,6 +19,7 @@ mod keyboard;
 mod memory;
 mod time;
 mod shell;
+mod halscript;
 
 lazy_static! {
     pub static ref SHELL: Mutex<shell::Shell> = Mutex::new(shell::Shell::new());

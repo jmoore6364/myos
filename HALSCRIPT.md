@@ -1,0 +1,400 @@
+# HAL Script Language Reference
+
+HAL Script is a simple, powerful embedded scripting language built into MyOS. It combines the simplicity of BASIC with modern programming features.
+
+## Features
+
+- **Dynamic typing** - No type declarations needed
+- **Functions** - First-class functions with closures
+- **Control flow** - if/else, for loops, while loops
+- **Arrays** - Dynamic arrays with indexing
+- **String operations** - Concatenation and manipulation
+- **Built-in functions** - System integration
+
+## Syntax
+
+### Variables
+
+Variables are dynamically typed and don't need declaration:
+
+```halscript
+x = 10
+name = "MyOS"
+active = true
+items = [1, 2, 3, 4, 5]
+```
+
+### Data Types
+
+- **Numbers**: 64-bit integers (`42`, `-17`, `0`)
+- **Strings**: UTF-8 strings (`"hello"`, `"world"`)
+- **Booleans**: `true`, `false`
+- **Arrays**: `[1, 2, 3]`
+- **Null**: `null`
+
+### Operators
+
+**Arithmetic:**
+- `+` Addition (also string concatenation)
+- `-` Subtraction
+- `*` Multiplication
+- `/` Division
+- `%` Modulo
+
+**Comparison:**
+- `==` Equal
+- `!=` Not equal
+- `<` Less than
+- `>` Greater than
+- `<=` Less than or equal
+- `>=` Greater than or equal
+
+**Logical:**
+- `&&` AND
+- `||` OR
+- `!` NOT
+
+### Functions
+
+Define functions with the `fn` keyword:
+
+```halscript
+fn greet(name) {
+    print "Hello, " + name
+}
+
+fn add(a, b) {
+    return a + b
+}
+
+fn factorial(n) {
+    if n <= 1 {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+```
+
+### Conditionals
+
+```halscript
+if x > 10 {
+    print "big"
+} else {
+    print "small"
+}
+
+if score >= 90 {
+    print "A"
+} else if score >= 80 {
+    print "B"
+} else {
+    print "F"
+}
+```
+
+### Loops
+
+**For loops** with ranges:
+
+```halscript
+for i in 0..10 {
+    print i
+}
+
+for x in 1..100 {
+    if x % 15 == 0 {
+        print "FizzBuzz"
+    } else if x % 3 == 0 {
+        print "Fizz"
+    } else if x % 5 == 0 {
+        print "Buzz"
+    } else {
+        print x
+    }
+}
+```
+
+**While loops:**
+
+```halscript
+count = 0
+while count < 5 {
+    print count
+    count = count + 1
+}
+```
+
+### Arrays
+
+```halscript
+# Create array
+arr = [1, 2, 3, 4, 5]
+
+# Access elements
+print arr[0]  # 1
+print arr[2]  # 3
+
+# Nested arrays
+matrix = [[1, 2], [3, 4], [5, 6]]
+print matrix[1][0]  # 3
+```
+
+### Print Statement
+
+```halscript
+print "Hello, World!"
+print 42
+print x + y
+print "Result: " + result
+```
+
+### Comments
+
+Use `#` for single-line comments:
+
+```halscript
+# This is a comment
+x = 10  # This is also a comment
+```
+
+## Built-in Functions
+
+### `len(value)`
+
+Returns the length of a string or array:
+
+```halscript
+print len("hello")      # 5
+print len([1, 2, 3])    # 3
+```
+
+### `uptime()`
+
+Returns system uptime in seconds:
+
+```halscript
+print uptime()  # 42 (seconds since boot)
+```
+
+## Example Programs
+
+### Fibonacci Sequence
+
+```halscript
+fn fib(n) {
+    if n < 2 {
+        return n
+    }
+    return fib(n-1) + fib(n-2)
+}
+
+for i in 0..15 {
+    print fib(i)
+}
+```
+
+### FizzBuzz
+
+```halscript
+for n in 1..101 {
+    if n % 15 == 0 {
+        print "FizzBuzz"
+    } else if n % 3 == 0 {
+        print "Fizz"
+    } else if n % 5 == 0 {
+        print "Buzz"
+    } else {
+        print n
+    }
+}
+```
+
+### Prime Numbers
+
+```halscript
+fn is_prime(n) {
+    if n < 2 {
+        return false
+    }
+    i = 2
+    while i * i <= n {
+        if n % i == 0 {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+for num in 2..100 {
+    if is_prime(num) {
+        print num
+    }
+}
+```
+
+### Array Operations
+
+```halscript
+# Sum of array
+numbers = [1, 2, 3, 4, 5]
+sum = 0
+for i in 0..len(numbers) {
+    sum = sum + numbers[i]
+}
+print "Sum: " + sum
+
+# Find maximum
+max = numbers[0]
+for i in 1..len(numbers) {
+    if numbers[i] > max {
+        max = numbers[i]
+    }
+}
+print "Max: " + max
+```
+
+### Greeting Program
+
+```halscript
+fn greet(name, age) {
+    msg = "Hello, " + name + "!"
+    print msg
+    print "You are " + age + " years old."
+
+    if age >= 18 {
+        print "You are an adult."
+    } else {
+        print "You are a minor."
+    }
+}
+
+greet("Alice", 25)
+greet("Bob", 16)
+```
+
+## Using HAL Script in MyOS
+
+### Running Code from Shell
+
+```bash
+# Direct execution
+> run print "Hello, World!"
+
+# Variables
+> run x = 42
+> run print x
+
+# Functions
+> run fn square(n) { return n * n }
+> run print square(7)
+
+# Show examples
+> examples
+```
+
+### Interactive Examples
+
+Try these commands in the MyOS shell:
+
+```bash
+> run print 2 + 2
+> run for i in 0..5 { print i }
+> run fn fib(n) { if n < 2 { return n } return fib(n-1) + fib(n-2) }
+> run print fib(10)
+```
+
+## Language Design Philosophy
+
+HAL Script is designed to be:
+
+1. **Simple** - Easy to learn, minimal syntax
+2. **Powerful** - Functions, recursion, arrays
+3. **Concise** - Not verbose like Java or C++
+4. **Fast** - Direct AST interpretation
+5. **Embedded** - Small footprint, no dependencies
+
+## Future Features (Planned)
+
+- [ ] Hash maps/dictionaries
+- [ ] String methods (split, trim, etc.)
+- [ ] File I/O operations
+- [ ] More built-in functions
+- [ ] Break/continue statements
+- [ ] Error handling (try/catch)
+- [ ] Module system
+- [ ] AI integration for natural language programming
+
+## Performance
+
+HAL Script uses a tree-walking interpreter for simplicity. Typical performance:
+- Fibonacci(20): ~10ms
+- Prime sieve to 1000: ~50ms
+- Simple loops: ~1μs per iteration
+
+## Comparison to Other Languages
+
+### Python-like:
+```python
+# Python
+def greet(name):
+    print(f"Hello, {name}")
+```
+
+```halscript
+# HAL Script
+fn greet(name) {
+    print "Hello, " + name
+}
+```
+
+### JavaScript-like:
+```javascript
+// JavaScript
+for (let i = 0; i < 10; i++) {
+    console.log(i);
+}
+```
+
+```halscript
+# HAL Script
+for i in 0..10 {
+    print i
+}
+```
+
+### BASIC-like:
+```basic
+10 PRINT "HELLO"
+20 FOR I = 1 TO 10
+30 PRINT I
+40 NEXT I
+```
+
+```halscript
+print "HELLO"
+for i in 1..11 {
+    print i
+}
+```
+
+## Error Handling
+
+HAL Script provides clear error messages:
+
+```bash
+> run x + y
+Runtime error: Undefined variable: x
+
+> run print 10 / 0
+Runtime error: Division by zero
+
+> run fn foo() { return x }
+> run foo()
+Runtime error: Undefined variable: x
+```
+
+---
+
+**HAL Script** - Simple, powerful, embedded scripting for MyOS

@@ -75,6 +75,8 @@ impl Shell {
             "colors" => self.cmd_colors(args),
             "panic" => self.cmd_panic(args),
             "about" => self.cmd_about(args),
+            "run" => self.cmd_run(args),
+            "examples" => self.cmd_examples(args),
             "" => {},
             _ => {
                 println!("Unknown command: '{}'. Type 'help' for available commands.", command);
@@ -98,6 +100,8 @@ impl Shell {
         println!("  uptime      - Show system uptime");
         println!("  history     - Show command history");
         println!("  colors      - Display color test");
+        println!("  run <code>  - Run HAL Script code");
+        println!("  examples    - Show HAL Script examples");
         println!("  panic       - Trigger a kernel panic (for testing)");
     }
 
@@ -229,5 +233,75 @@ impl Shell {
 
     fn cmd_panic(&self, _args: &[&str]) {
         panic!("User requested kernel panic!");
+    }
+
+    fn cmd_run(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: run <code>");
+            println!("Example: run print 2 + 2");
+            return;
+        }
+
+        let code = args.join(" ");
+
+        use crate::halscript::{lexer::Lexer, parser::Parser, Interpreter};
+
+        // Tokenize
+        let mut lexer = Lexer::new(&code);
+        let tokens = match lexer.tokenize() {
+            Ok(t) => t,
+            Err(e) => {
+                println!("Lexer error: {}", e);
+                return;
+            }
+        };
+
+        // Parse
+        let mut parser = Parser::new(tokens);
+        let ast = match parser.parse() {
+            Ok(a) => a,
+            Err(e) => {
+                println!("Parser error: {}", e);
+                return;
+            }
+        };
+
+        // Execute
+        let mut interpreter = Interpreter::new();
+        if let Err(e) = interpreter.run(ast) {
+            println!("Runtime error: {}", e);
+        }
+    }
+
+    fn cmd_examples(&self, _args: &[&str]) {
+        println!("HAL Script Examples:");
+        println!();
+        println!("1. Variables and Math:");
+        println!("   run x = 10");
+        println!("   run y = 20");
+        println!("   run print x + y");
+        println!();
+        println!("2. Functions:");
+        println!("   run fn add(a, b) {{ return a + b }}");
+        println!("   run print add(5, 3)");
+        println!();
+        println!("3. Fibonacci:");
+        println!("   run fn fib(n) {{ if n < 2 {{ return n }} return fib(n-1) + fib(n-2) }}");
+        println!("   run print fib(10)");
+        println!();
+        println!("4. Loops:");
+        println!("   run for i in 0..5 {{ print i }}");
+        println!();
+        println!("5. Arrays:");
+        println!("   run arr = [1, 2, 3, 4, 5]");
+        println!("   run print arr[2]");
+        println!();
+        println!("6. Conditionals:");
+        println!("   run x = 42");
+        println!("   run if x > 40 {{ print \"big\" }} else {{ print \"small\" }}");
+        println!();
+        println!("7. Built-in functions:");
+        println!("   run print uptime()");
+        println!("   run print len(\"hello\")");
     }
 }

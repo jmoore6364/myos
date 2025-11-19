@@ -9,6 +9,8 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 - **Interrupt Handling**: Hardware interrupts (keyboard, timer)
 - **VGA Text Mode**: Color terminal output
 - **Keyboard Input**: Real-time keyboard driver
+- **Interactive Shell**: Command-line interface with built-in commands
+- **HAL Script**: Built-in programming language (see [HALSCRIPT.md](HALSCRIPT.md))
 - **Rust Powered**: Memory-safe kernel with zero-cost abstractions
 - **WebAssembly Ready**: Can be compiled to WASM for browser demos
 
@@ -23,10 +25,13 @@ MyOS
 │   ├── Memory Management (Paging + Heap)
 │   ├── VGA Buffer Driver
 │   └── Keyboard Driver
+├── Shell & Scripting
+│   ├── Interactive Shell
+│   ├── HAL Script Language
+│   └── Built-in Commands
 ├── Planned Features
 │   ├── Task Scheduler
 │   ├── Virtual File System
-│   ├── Command Shell
 │   └── AI Integration Layer
 ```
 
@@ -154,6 +159,8 @@ qemu-system-x86_64 \
 - [x] Interrupt handling
 - [x] Memory management
 - [x] Keyboard input
+- [x] Interactive shell
+- [x] HAL Script language
 
 ### Phase 2: Process Management (In Progress)
 - [ ] Task scheduler
