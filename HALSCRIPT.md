@@ -205,7 +205,7 @@ x = 10  # This is also a comment
 
 ## Built-in Functions
 
-HAL Script provides 24 powerful built-in functions:
+HAL Script provides 28 powerful built-in functions:
 
 ### String & Type Conversion
 
@@ -381,6 +381,45 @@ sub2 = substring(text, 6, 11)        # "world"
 Returns system uptime in seconds:
 ```halscript
 print uptime()          # 42 (seconds since boot)
+```
+
+### File I/O Functions
+
+#### `read_file(path)`
+Reads the contents of a file from the VFS:
+```halscript
+content = read_file("/home/welcome.txt")
+print content
+```
+
+#### `write_file(path, content)`
+Writes content to a file (creates if doesn't exist):
+```halscript
+write_file("/tmp/test.txt", "Hello, World!")
+write_file("/home/data.txt", str([1, 2, 3]))
+```
+
+#### `file_exists(path)`
+Checks if a file or directory exists:
+```halscript
+if file_exists("/home/welcome.txt") {
+    print "File exists!"
+} else {
+    print "File not found"
+}
+```
+
+#### `list_dir(path)`
+Lists all files and directories in a directory:
+```halscript
+files = list_dir("/scripts")
+for file in files {
+    print file
+}
+
+# List root directory
+root_files = list_dir("/")
+print "Root contains: " + join(root_files, ", ")
 ```
 
 ## Running Scripts from Files

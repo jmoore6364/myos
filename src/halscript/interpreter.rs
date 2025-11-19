@@ -605,6 +605,78 @@ impl Interpreter {
                     _ => Err(String::from("join() requires an array and a string separator")),
                 }
             }
+            "read_file" => {
+                if args.len() != 1 {
+                    return Err(format!("read_file() takes 1 argument, got {}", args.len()));
+                }
+                let path = self.eval_expr(args[0].clone())?;
+
+                match path {
+                    Value::String(p) => {
+                        let vfs = crate::vfs::VFS.lock();
+                        match vfs.read_file(&p) {
+                            Ok(content) => Ok(Value::String(content)),
+                            Err(e) => Err(e),
+                        }
+                    }
+                    _ => Err(String::from("read_file() requires a string path")),
+                }
+            }
+            "write_file" => {
+                if args.len() != 2 {
+                    return Err(format!("write_file() takes 2 arguments, got {}", args.len()));
+                }
+                let path = self.eval_expr(args[0].clone())?;
+                let content = self.eval_expr(args[1].clone())?;
+
+                match (path, content) {
+                    (Value::String(p), Value::String(c)) => {
+                        let mut vfs = crate::vfs::VFS.lock();
+                        match vfs.write_file(&p, c) {
+                            Ok(_) => Ok(Value::Null),
+                            Err(e) => Err(e),
+                        }
+                    }
+                    (Value::String(_), _) => Err(String::from("write_file() content must be a string")),
+                    _ => Err(String::from("write_file() requires string path and content")),
+                }
+            }
+            "file_exists" => {
+                if args.len() != 1 {
+                    return Err(format!("file_exists() takes 1 argument, got {}", args.len()));
+                }
+                let path = self.eval_expr(args[0].clone())?;
+
+                match path {
+                    Value::String(p) => {
+                        let vfs = crate::vfs::VFS.lock();
+                        Ok(Value::Bool(vfs.file_exists(&p)))
+                    }
+                    _ => Err(String::from("file_exists() requires a string path")),
+                }
+            }
+            "list_dir" => {
+                if args.len() != 1 {
+                    return Err(format!("list_dir() takes 1 argument, got {}", args.len()));
+                }
+                let path = self.eval_expr(args[0].clone())?;
+
+                match path {
+                    Value::String(p) => {
+                        let vfs = crate::vfs::VFS.lock();
+                        match vfs.list_directory(&p) {
+                            Ok(entries) => {
+                                let files: Vec<Value> = entries.iter()
+                                    .map(|(name, _, _)| Value::String(name.clone()))
+                                    .collect();
+                                Ok(Value::Array(files))
+                            }
+                            Err(e) => Err(e),
+                        }
+                    }
+                    _ => Err(String::from("list_dir() requires a string path")),
+                }
+            }
             _ => {
                 // User-defined function
                 let func = self.functions.get(&name)
