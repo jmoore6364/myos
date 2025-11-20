@@ -36,6 +36,10 @@ pub enum SyscallNumber {
     SemPost = 25,
     SemGetValue = 26,
     SemDestroy = 27,
+    MsgGet = 28,
+    MsgSnd = 29,
+    MsgRcv = 30,
+    MsgCtl = 31,
 }
 
 impl SyscallNumber {
@@ -69,6 +73,10 @@ impl SyscallNumber {
             25 => Some(SyscallNumber::SemPost),
             26 => Some(SyscallNumber::SemGetValue),
             27 => Some(SyscallNumber::SemDestroy),
+            28 => Some(SyscallNumber::MsgGet),
+            29 => Some(SyscallNumber::MsgSnd),
+            30 => Some(SyscallNumber::MsgRcv),
+            31 => Some(SyscallNumber::MsgCtl),
             _ => None,
         }
     }
@@ -123,6 +131,10 @@ pub fn syscall_handler(
         Some(SyscallNumber::SemPost) => syscall_sempost(arg1),
         Some(SyscallNumber::SemGetValue) => syscall_semgetvalue(arg1),
         Some(SyscallNumber::SemDestroy) => syscall_semdestroy(arg1),
+        Some(SyscallNumber::MsgGet) => syscall_msgget(arg1, arg2),
+        Some(SyscallNumber::MsgSnd) => syscall_msgsnd(arg1, arg2, arg3),
+        Some(SyscallNumber::MsgRcv) => syscall_msgrcv(arg1, arg2, arg3),
+        Some(SyscallNumber::MsgCtl) => syscall_msgctl(arg1, arg2),
         None => {
             println!("Unknown syscall: {}", syscall_num);
             u64::MAX // Error code
@@ -487,6 +499,73 @@ fn syscall_semdestroy(id: u64) -> u64 {
     }
 }
 
+/// Syscall: Get or create a message queue
+/// arg1: key (i32)
+/// arg2: flags (i32)
+fn syscall_msgget(key: u64, flags: u64) -> u64 {
+    match crate::msgq::msgget(key as i32, flags as i32) {
+        Ok(id) => id,
+        Err(_) => u64::MAX,
+    }
+}
+
+/// Syscall: Send a message to a queue
+/// arg1: queue ID
+/// arg2: message type
+/// arg3: packed (data_ptr in upper 32 bits, data_len in lower 32 bits)
+fn syscall_msgsnd(id: u64, msg_type: u64, packed: u64) -> u64 {
+    let data_ptr = (packed >> 32) as usize;
+    let data_len = (packed & 0xFFFFFFFF) as usize;
+
+    // Read data from user memory
+    let data = unsafe {
+        let slice = core::slice::from_raw_parts(data_ptr as *const u8, data_len);
+        alloc::vec::Vec::from(slice)
+    };
+
+    match crate::msgq::msgsnd(id, msg_type as i64, data) {
+        Ok(()) => 0,
+        Err(_) => u64::MAX,
+    }
+}
+
+/// Syscall: Receive a message from a queue
+/// arg1: queue ID
+/// arg2: message type
+/// arg3: packed (buffer_ptr in upper 32 bits, buffer_len in lower 32 bits)
+fn syscall_msgrcv(id: u64, msg_type: u64, packed: u64) -> u64 {
+    let buffer_ptr = (packed >> 32) as usize;
+    let buffer_len = (packed & 0xFFFFFFFF) as usize;
+
+    match crate::msgq::msgrcv(id, msg_type as i64) {
+        Ok(msg) => {
+            // Copy message data to user buffer
+            if msg.data.len() > buffer_len {
+                return u64::MAX; // Buffer too small
+            }
+
+            unsafe {
+                let dest = core::slice::from_raw_parts_mut(buffer_ptr as *mut u8, msg.data.len());
+                dest.copy_from_slice(&msg.data);
+            }
+
+            // Return message type in upper 32 bits, length in lower 32 bits
+            ((msg.msg_type as u64) << 32) | (msg.data.len() as u64)
+        }
+        Err(_) => u64::MAX,
+    }
+}
+
+/// Syscall: Control message queue
+/// arg1: queue ID
+/// arg2: command (IPC_RMID, IPC_STAT, IPC_SET)
+fn syscall_msgctl(id: u64, cmd: u64) -> u64 {
+    match crate::msgq::msgctl(id, cmd as i32) {
+        Ok(_stat) => 0,
+        Err(_) => u64::MAX,
+    }
+}
+
 // User-space syscall API
 // These functions can be called from tasks to invoke system calls
 
@@ -812,4 +891,46 @@ pub fn sem_getvalue(sem_id: u64) -> u64 {
 #[inline(always)]
 pub fn sem_destroy(sem_id: u64) -> u64 {
     syscall1(SyscallNumber::SemDestroy as u64, sem_id)
+}
+
+// Message Queue API
+
+/// Get or create a message queue
+/// Returns queue ID or u64::MAX on error
+#[inline(always)]
+pub fn msgget(key: i32, flags: i32) -> u64 {
+    syscall2(SyscallNumber::MsgGet as u64, key as u64, flags as u64)
+}
+
+/// Send a message to a queue
+/// Returns 0 on success or u64::MAX on error
+#[inline(always)]
+pub fn msgsnd(queue_id: u64, msg_type: i64, data: &[u8]) -> u64 {
+    let packed = ((data.as_ptr() as u64) << 32) | (data.len() as u64);
+    syscall3(
+        SyscallNumber::MsgSnd as u64,
+        queue_id,
+        msg_type as u64,
+        packed,
+    )
+}
+
+/// Receive a message from a queue
+/// Returns (msg_type << 32) | msg_len on success, u64::MAX on error
+#[inline(always)]
+pub fn msgrcv(queue_id: u64, msg_type: i64, buffer: &mut [u8]) -> u64 {
+    let packed = ((buffer.as_ptr() as u64) << 32) | (buffer.len() as u64);
+    syscall3(
+        SyscallNumber::MsgRcv as u64,
+        queue_id,
+        msg_type as u64,
+        packed,
+    )
+}
+
+/// Control a message queue
+/// Returns 0 on success or u64::MAX on error
+#[inline(always)]
+pub fn msgctl(queue_id: u64, cmd: i32) -> u64 {
+    syscall2(SyscallNumber::MsgCtl as u64, queue_id, cmd as u64)
 }
