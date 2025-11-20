@@ -30,6 +30,12 @@ pub enum SyscallNumber {
     ShmAt = 19,
     ShmDt = 20,
     ShmCtl = 21,
+    SemInit = 22,
+    SemOpen = 23,
+    SemWait = 24,
+    SemPost = 25,
+    SemGetValue = 26,
+    SemDestroy = 27,
 }
 
 impl SyscallNumber {
@@ -57,6 +63,12 @@ impl SyscallNumber {
             19 => Some(SyscallNumber::ShmAt),
             20 => Some(SyscallNumber::ShmDt),
             21 => Some(SyscallNumber::ShmCtl),
+            22 => Some(SyscallNumber::SemInit),
+            23 => Some(SyscallNumber::SemOpen),
+            24 => Some(SyscallNumber::SemWait),
+            25 => Some(SyscallNumber::SemPost),
+            26 => Some(SyscallNumber::SemGetValue),
+            27 => Some(SyscallNumber::SemDestroy),
             _ => None,
         }
     }
@@ -105,6 +117,12 @@ pub fn syscall_handler(
         Some(SyscallNumber::ShmAt) => syscall_shmat(arg1, arg2),
         Some(SyscallNumber::ShmDt) => syscall_shmdt(arg1),
         Some(SyscallNumber::ShmCtl) => syscall_shmctl(arg1, arg2),
+        Some(SyscallNumber::SemInit) => syscall_seminit(arg1),
+        Some(SyscallNumber::SemOpen) => syscall_semopen(arg1, arg2, arg3),
+        Some(SyscallNumber::SemWait) => syscall_semwait(arg1),
+        Some(SyscallNumber::SemPost) => syscall_sempost(arg1),
+        Some(SyscallNumber::SemGetValue) => syscall_semgetvalue(arg1),
+        Some(SyscallNumber::SemDestroy) => syscall_semdestroy(arg1),
         None => {
             println!("Unknown syscall: {}", syscall_num);
             u64::MAX // Error code
@@ -398,6 +416,77 @@ fn syscall_shmctl(id: u64, cmd: u64) -> u64 {
     }
 }
 
+/// Syscall: Initialize an unnamed semaphore
+/// arg1: initial value
+fn syscall_seminit(initial_value: u64) -> u64 {
+    match crate::sem::sem_init(initial_value as i32) {
+        Ok(id) => id,
+        Err(_) => u64::MAX,
+    }
+}
+
+/// Syscall: Open or create a named semaphore
+/// arg1: name pointer
+/// arg2: name length
+/// arg3: flags and initial value (flags in upper 32 bits, value in lower 32 bits)
+fn syscall_semopen(name_ptr: u64, name_len: u64, flags_and_value: u64) -> u64 {
+    // Extract flags and initial value from arg3
+    let flags = (flags_and_value >> 32) as i32;
+    let initial_value = (flags_and_value & 0xFFFFFFFF) as i32;
+
+    // Read name from user memory
+    let name_slice = unsafe {
+        core::slice::from_raw_parts(name_ptr as *const u8, name_len as usize)
+    };
+
+    let name = match core::str::from_utf8(name_slice) {
+        Ok(s) => alloc::string::String::from(s),
+        Err(_) => return u64::MAX,
+    };
+
+    match crate::sem::sem_open(name, flags, initial_value) {
+        Ok(id) => id,
+        Err(_) => u64::MAX,
+    }
+}
+
+/// Syscall: Wait on a semaphore
+/// arg1: semaphore ID
+fn syscall_semwait(id: u64) -> u64 {
+    match crate::sem::sem_wait(id) {
+        Ok(true) => 0,    // Acquired
+        Ok(false) => 1,   // Would block
+        Err(_) => u64::MAX,
+    }
+}
+
+/// Syscall: Post to a semaphore
+/// arg1: semaphore ID
+fn syscall_sempost(id: u64) -> u64 {
+    match crate::sem::sem_post(id) {
+        Ok(()) => 0,
+        Err(_) => u64::MAX,
+    }
+}
+
+/// Syscall: Get semaphore value
+/// arg1: semaphore ID
+fn syscall_semgetvalue(id: u64) -> u64 {
+    match crate::sem::sem_getvalue(id) {
+        Ok(value) => value as u64,
+        Err(_) => u64::MAX,
+    }
+}
+
+/// Syscall: Destroy a semaphore
+/// arg1: semaphore ID
+fn syscall_semdestroy(id: u64) -> u64 {
+    match crate::sem::sem_destroy(id) {
+        Ok(()) => 0,
+        Err(_) => u64::MAX,
+    }
+}
+
 // User-space syscall API
 // These functions can be called from tasks to invoke system calls
 
@@ -673,4 +762,54 @@ pub fn shmdt(addr: u64) -> u64 {
 #[inline(always)]
 pub fn shmctl(shm_id: u64, cmd: i32) -> u64 {
     syscall2(SyscallNumber::ShmCtl as u64, shm_id, cmd as u64)
+}
+
+// Semaphore API
+
+/// Initialize an unnamed semaphore
+/// Returns semaphore ID or u64::MAX on error
+#[inline(always)]
+pub fn sem_init(initial_value: i32) -> u64 {
+    syscall1(SyscallNumber::SemInit as u64, initial_value as u64)
+}
+
+/// Open or create a named semaphore
+/// Returns semaphore ID or u64::MAX on error
+#[inline(always)]
+pub fn sem_open(name: &str, flags: i32, initial_value: i32) -> u64 {
+    let flags_and_value = ((flags as u64) << 32) | (initial_value as u32 as u64);
+    syscall3(
+        SyscallNumber::SemOpen as u64,
+        name.as_ptr() as u64,
+        name.len() as u64,
+        flags_and_value,
+    )
+}
+
+/// Wait on a semaphore (P operation)
+/// Returns 0 if acquired, 1 if would block, u64::MAX on error
+#[inline(always)]
+pub fn sem_wait(sem_id: u64) -> u64 {
+    syscall1(SyscallNumber::SemWait as u64, sem_id)
+}
+
+/// Post to a semaphore (V operation)
+/// Returns 0 on success or u64::MAX on error
+#[inline(always)]
+pub fn sem_post(sem_id: u64) -> u64 {
+    syscall1(SyscallNumber::SemPost as u64, sem_id)
+}
+
+/// Get semaphore value
+/// Returns value or u64::MAX on error
+#[inline(always)]
+pub fn sem_getvalue(sem_id: u64) -> u64 {
+    syscall1(SyscallNumber::SemGetValue as u64, sem_id)
+}
+
+/// Destroy a semaphore
+/// Returns 0 on success or u64::MAX on error
+#[inline(always)]
+pub fn sem_destroy(sem_id: u64) -> u64 {
+    syscall1(SyscallNumber::SemDestroy as u64, sem_id)
 }

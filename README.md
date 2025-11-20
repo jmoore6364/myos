@@ -12,10 +12,10 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 - **Keyboard Input**: Real-time PS/2 keyboard driver with full character support
 - **CPU Context Switching**: Full register save/restore for true multitasking
 - **Task Scheduler**: Preemptive round-robin task scheduling with 10ms time slices
-- **System Calls**: INT 0x80 syscall interface with 22 syscalls (exit, yield, print, get_time, get_ticks, sleep, getpid, getppid, fork, wait, kill, exec, signal, sigmask, pipe, read, write, close, shmget, shmat, shmdt, shmctl)
+- **System Calls**: INT 0x80 syscall interface with 28 syscalls (exit, yield, print, get_time, get_ticks, sleep, getpid, getppid, fork, wait, kill, exec, signal, sigmask, pipe, read, write, close, shmget, shmat, shmdt, shmctl, seminit, semopen, semwait, sempost, semgetvalue, semdestroy)
 - **Process Management**: Process control blocks, process table, lifecycle management, parent-child relationships
 - **Signal Handling**: Unix-like signals (20 signal types), signal masks, custom handlers, signal delivery
-- **IPC Mechanisms**: Unix-like pipes (4KB circular buffers), signals (20 types), shared memory (System V-style)
+- **IPC Mechanisms**: Unix-like pipes (4KB circular buffers), signals (20 types), shared memory (System V-style), semaphores (POSIX-style)
 
 ### User Environment
 - **Interactive Shell**: 39+ commands for system control
@@ -50,7 +50,7 @@ MyOS
 │   ├── Keyboard Driver
 │   ├── PIT Driver (Programmable Interval Timer)
 │   ├── Context Switching (CPU state save/restore)
-│   └── System Calls (INT 0x80 interface - 22 syscalls)
+│   └── System Calls (INT 0x80 interface - 28 syscalls)
 ├── Process Management
 │   ├── Process Control Blocks (PCB)
 │   ├── Process Table & Lifecycle
@@ -74,12 +74,17 @@ MyOS
 │   ├── Shared Memory (shmget, shmat, shmdt, shmctl syscalls)
 │   ├── System V-style Shared Memory Segments
 │   ├── Named and Anonymous Segments (IPC_PRIVATE)
-│   └── Automatic Cleanup on Detach
+│   ├── Automatic Cleanup on Detach
+│   ├── Semaphores (seminit, semopen, semwait, sempost, semgetvalue, semdestroy)
+│   ├── POSIX-style Counting Semaphores
+│   ├── Named and Unnamed Semaphores
+│   ├── Atomic Wait/Post Operations (P/V)
+│   └── Process Waiting Queue
 ├── Task Management
 │   ├── Preemptive Scheduler (Round-Robin)
 │   ├── Task Creation & Execution
 │   ├── Manual Context Switch API
-│   └── Syscall API (22 total syscalls)
+│   └── Syscall API (28 total syscalls)
 ├── Shell & Scripting
 │   ├── Interactive Shell (43+ commands)
 │   ├── HAL Script Language (full Turing-complete)

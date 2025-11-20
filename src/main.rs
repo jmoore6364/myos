@@ -26,6 +26,7 @@ mod process;
 mod signal;
 mod pipe;
 mod shm;
+mod sem;
 
 lazy_static! {
     pub static ref SHELL: Mutex<shell::Shell> = Mutex::new(shell::Shell::new());
