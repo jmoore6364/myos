@@ -61,6 +61,14 @@ lazy_static! {
         idt[InterruptIndex::Keyboard.as_usize()]
             .set_handler_fn(keyboard_interrupt_handler);
 
+        // System Call Interrupt (INT 0x80)
+        // Use set_handler_addr for naked function
+        unsafe {
+            idt[0x80].set_handler_addr(
+                x86_64::VirtAddr::new(syscall_interrupt_handler as u64)
+            );
+        }
+
         idt
     };
 }
@@ -260,3 +268,90 @@ extern "x86-interrupt" fn simd_floating_point_handler(stack_frame: InterruptStac
 // fn test_breakpoint_exception() {
 //     x86_64::instructions::interrupts::int3();
 // }
+
+/// System call interrupt handler (INT 0x80)
+///
+/// This is a naked function that manually saves/restores registers
+/// to properly handle syscall arguments and return values.
+///
+/// Syscall ABI:
+/// - RAX: syscall number
+/// - RDI: arg1
+/// - RSI: arg2
+/// - RDX: arg3
+/// - R10: arg4
+/// - R8: arg5
+/// - R9: arg6
+/// - Return value in RAX
+#[unsafe(naked)]
+extern "C" fn syscall_interrupt_handler() {
+    unsafe {
+        core::arch::naked_asm!(
+            // Save all registers
+            "push rax",
+            "push rbx",
+            "push rcx",
+            "push rdx",
+            "push rsi",
+            "push rdi",
+            "push rbp",
+            "push r8",
+            "push r9",
+            "push r10",
+            "push r11",
+            "push r12",
+            "push r13",
+            "push r14",
+            "push r15",
+
+            // Prepare arguments for syscall_handler
+            // syscall_handler(syscall_num: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64, arg5: u64) -> u64
+            // Get syscall number from saved RAX (14*8 bytes up on stack)
+            "mov rax, [rsp + 14*8]",  // syscall number (was in RAX)
+            // RDI, RSI, RDX already contain arg1, arg2, arg3
+            "mov rcx, r10",           // arg4 (from R10)
+            "mov r8, r8",             // arg5 (already in R8)
+            "mov r9, r9",             // arg6 (already in R9)
+
+            // Call the Rust syscall handler
+            "call {syscall_handler}",
+
+            // Save return value
+            "mov [rsp + 14*8], rax",  // Store return value where RAX was saved
+
+            // Restore all registers (RAX will have return value)
+            "pop r15",
+            "pop r14",
+            "pop r13",
+            "pop r12",
+            "pop r11",
+            "pop r10",
+            "pop r9",
+            "pop r8",
+            "pop rbp",
+            "pop rdi",
+            "pop rsi",
+            "pop rdx",
+            "pop rcx",
+            "pop rbx",
+            "pop rax",  // RAX now contains return value
+
+            "iretq",
+
+            syscall_handler = sym syscall_dispatcher,
+        )
+    }
+}
+
+/// Rust-side syscall dispatcher
+/// Called from the assembly wrapper with arguments in proper registers
+extern "C" fn syscall_dispatcher(
+    syscall_num: u64,
+    arg1: u64,
+    arg2: u64,
+    arg3: u64,
+    arg4: u64,
+    arg5: u64,
+) -> u64 {
+    crate::syscall::syscall_handler(syscall_num, arg1, arg2, arg3, arg4, arg5)
+}

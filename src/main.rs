@@ -21,6 +21,7 @@ mod halscript;
 mod vfs;
 mod task;
 mod context;
+mod syscall;
 
 lazy_static! {
     pub static ref SHELL: Mutex<shell::Shell> = Mutex::new(shell::Shell::new());
@@ -28,44 +29,50 @@ lazy_static! {
     pub static ref SCHEDULER: Mutex<task::Scheduler> = Mutex::new(task::Scheduler::new());
 }
 
-/// Test task functions
+/// Test task functions demonstrating syscalls
 extern "C" fn task_a() {
-    let mut counter = 0;
-    loop {
-        println!("Task A running (iteration {})", counter);
-        counter += 1;
+    use crate::syscall;
 
-        // Yield to other tasks
-        for _ in 0..100000 {
-            core::hint::spin_loop();
-        }
+    for i in 0..5 {
+        let msg = alloc::format!("Task A iteration {}\n", i);
+        syscall::sys_print(&msg);
+
+        // Sleep using syscall
+        syscall::sleep(500); // 500ms
     }
+
+    syscall::sys_print("Task A completed!\n");
+    syscall::exit(0);
 }
 
 extern "C" fn task_b() {
-    let mut counter = 0;
-    loop {
-        println!("  Task B running (iteration {})", counter);
-        counter += 1;
+    use crate::syscall;
 
-        // Yield to other tasks
-        for _ in 0..100000 {
-            core::hint::spin_loop();
-        }
+    for i in 0..5 {
+        let msg = alloc::format!("  Task B iteration {}\n", i);
+        syscall::sys_print(&msg);
+
+        // Sleep using syscall
+        syscall::sleep(700); // 700ms
     }
+
+    syscall::sys_print("  Task B completed!\n");
+    syscall::exit(0);
 }
 
 extern "C" fn task_c() {
-    let mut counter = 0;
-    loop {
-        println!("    Task C running (iteration {})", counter);
-        counter += 1;
+    use crate::syscall;
 
-        // Yield to other tasks
-        for _ in 0..100000 {
-            core::hint::spin_loop();
-        }
+    for i in 0..5 {
+        let msg = alloc::format!("    Task C iteration {} (time: {}s)\n", i, syscall::get_time());
+        syscall::sys_print(&msg);
+
+        // Sleep using syscall
+        syscall::sleep(1000); // 1000ms
     }
+
+    syscall::sys_print("    Task C completed!\n");
+    syscall::exit(0);
 }
 
 /// Initialize test tasks for demonstrating multitasking

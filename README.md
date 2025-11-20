@@ -12,6 +12,7 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 - **Keyboard Input**: Real-time PS/2 keyboard driver with full character support
 - **CPU Context Switching**: Full register save/restore for true multitasking
 - **Task Scheduler**: Preemptive round-robin task scheduling with 10ms time slices
+- **System Calls**: INT 0x80 syscall interface with 6 syscalls (exit, yield, print, get_time, get_ticks, sleep)
 
 ### User Environment
 - **Interactive Shell**: 39+ commands for system control
@@ -30,6 +31,7 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 - **Production-Ready Kernel**: 16+ CPU exception handlers for stability
 - **True Multitasking**: Assembly-level context switching with full CPU state save/restore
 - **PIT Driver**: Programmable Interval Timer for 100 Hz task scheduling
+- **System Call Interface**: INT 0x80 handler with register-based argument passing
 - **Extensible**: Easy to add new commands and features
 
 ## Architecture
@@ -44,11 +46,13 @@ MyOS
 │   ├── VGA Buffer Driver
 │   ├── Keyboard Driver
 │   ├── PIT Driver (Programmable Interval Timer)
-│   └── Context Switching (CPU state save/restore)
+│   ├── Context Switching (CPU state save/restore)
+│   └── System Calls (INT 0x80 interface)
 ├── Task Management
 │   ├── Preemptive Scheduler (Round-Robin)
 │   ├── Task Creation & Execution
-│   └── Manual Context Switch API
+│   ├── Manual Context Switch API
+│   └── Syscall API (exit, yield, print, get_time, get_ticks, sleep)
 ├── Shell & Scripting
 │   ├── Interactive Shell (40+ commands)
 │   ├── HAL Script Language (full Turing-complete)
@@ -59,8 +63,7 @@ MyOS
 │   ├── Directory Tree (/home, /scripts, /tmp)
 │   └── Unix-like Commands
 ├── Planned Features
-│   ├── User/Kernel Mode Separation
-│   ├── System Calls
+│   ├── User/Kernel Mode Separation (Ring 0/3)
 │   ├── Disk Drivers (ATA/AHCI)
 │   └── Network Stack
 ```
