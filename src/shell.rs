@@ -96,6 +96,8 @@ impl Shell {
             "kill" => self.cmd_kill(args),
             "sched" => self.cmd_sched(args),
             "switch" => self.cmd_switch(args),
+            // Process commands
+            "proc" => self.cmd_proc(args),
             "" => {},
             _ => {
                 println!("Unknown command: '{}'. Type 'help' for available commands.", command);
@@ -148,6 +150,11 @@ impl Shell {
         println!("  kill <task_id>  - Terminate a task");
         println!("  sched           - Show scheduler status");
         println!("  switch <id>     - Switch to task (testing)");
+        println!();
+        println!("Process Management:");
+        println!("  proc            - List all processes");
+        println!("  proc info <pid> - Show detailed process info");
+        println!("  proc create <name> - Create a new process");
         println!();
         println!("Other:");
         println!("  echo <text>     - Print text to the screen");
@@ -868,6 +875,102 @@ impl Shell {
             }
             Err(e) => {
                 println!("Error switching to task: {}", e);
+            }
+        }
+    }
+
+    fn cmd_proc(&self, args: &[&str]) {
+        use crate::process::PROCESS_TABLE;
+
+        if args.is_empty() {
+            // List all processes
+            let table = PROCESS_TABLE.lock();
+            let processes = table.list_processes();
+
+            println!("Process Table:");
+            println!("{:<6} {:<6} {:<20} {:<12} {:<8} {:<10}",
+                "PID", "PPID", "NAME", "STATE", "PRIORITY", "CPU TIME");
+            println!("{}", "-".repeat(70));
+
+            for process in processes {
+                let state_str = match process.state() {
+                    crate::process::ProcessState::Ready => "Ready",
+                    crate::process::ProcessState::Running => "Running",
+                    crate::process::ProcessState::Waiting => "Waiting",
+                    crate::process::ProcessState::Sleeping => "Sleeping",
+                    crate::process::ProcessState::Zombie => "Zombie",
+                    crate::process::ProcessState::Dead => "Dead",
+                };
+
+                let priority_str = match process.priority() {
+                    crate::process::Priority::Idle => "Idle",
+                    crate::process::Priority::Low => "Low",
+                    crate::process::Priority::Normal => "Normal",
+                    crate::process::Priority::High => "High",
+                    crate::process::Priority::Realtime => "Realtime",
+                };
+
+                println!("{:<6} {:<6} {:<20} {:<12} {:<8} {:<10}",
+                    process.pid(),
+                    process.parent_pid().unwrap_or(0),
+                    process.name(),
+                    state_str,
+                    priority_str,
+                    process.cpu_time()
+                );
+            }
+            return;
+        }
+
+        match args[0] {
+            "tree" => {
+                println!("Process tree view - not yet implemented");
+            }
+            "info" => {
+                if args.len() < 2 {
+                    println!("Usage: proc info <pid>");
+                    return;
+                }
+
+                let pid = match args[1].parse::<u64>() {
+                    Ok(p) => p,
+                    Err(_) => {
+                        println!("Invalid PID");
+                        return;
+                    }
+                };
+
+                let table = PROCESS_TABLE.lock();
+                if let Some(process) = table.get_process(pid) {
+                    println!("Process Information:");
+                    println!("  PID:     {}", process.pid());
+                    println!("  PPID:    {}", process.parent_pid().unwrap_or(0));
+                    println!("  Name:    {}", process.name());
+                    println!("  State:   {:?}", process.state());
+                    println!("  Priority: {:?}", process.priority());
+                    println!("  CWD:     {}", process.cwd());
+                    println!("  Memory:  {} bytes", process.memory_usage());
+                    println!("  CPU Time: {} ticks", process.cpu_time());
+                    println!("  Children: {} processes", process.children().len());
+                } else {
+                    println!("Process {} not found", pid);
+                }
+            }
+            "create" => {
+                if args.len() < 2 {
+                    println!("Usage: proc create <name>");
+                    return;
+                }
+
+                let name = alloc::string::String::from(args[1]);
+                match crate::process::create_process(name, Some(1)) {
+                    Ok(pid) => println!("Created process with PID {}", pid),
+                    Err(e) => println!("Error creating process: {}", e),
+                }
+            }
+            _ => {
+                println!("Unknown proc subcommand: {}", args[0]);
+                println!("Available: list (default), tree, info <pid>, create <name>");
             }
         }
     }

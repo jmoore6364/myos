@@ -22,6 +22,7 @@ mod vfs;
 mod task;
 mod context;
 mod syscall;
+mod process;
 
 lazy_static! {
     pub static ref SHELL: Mutex<shell::Shell> = Mutex::new(shell::Shell::new());
@@ -118,13 +119,16 @@ pub extern "C" fn _start(boot_info: &'static mut bootloader::BootInfo) -> ! {
     println!("[6/7] Initializing PIT...");
     pit::init();
 
-    println!("[7/9] Enabling interrupts...");
+    println!("[7/10] Initializing process subsystem...");
+    process::init();
+
+    println!("[8/10] Enabling interrupts...");
     x86_64::instructions::interrupts::enable();
 
-    println!("[8/9] Creating test tasks...");
+    println!("[9/10] Creating test tasks...");
     init_test_tasks();
 
-    println!("[9/9] Starting scheduler...");
+    println!("[10/10] Starting scheduler...");
 
     println!();
     println!("✓ Kernel initialized successfully!");

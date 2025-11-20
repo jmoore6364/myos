@@ -14,6 +14,12 @@ pub enum SyscallNumber {
     GetTime = 3,
     GetTicks = 4,
     Sleep = 5,
+    GetPid = 6,
+    GetPPid = 7,
+    Fork = 8,
+    Wait = 9,
+    Kill = 10,
+    Exec = 11,
 }
 
 impl SyscallNumber {
@@ -25,6 +31,12 @@ impl SyscallNumber {
             3 => Some(SyscallNumber::GetTime),
             4 => Some(SyscallNumber::GetTicks),
             5 => Some(SyscallNumber::Sleep),
+            6 => Some(SyscallNumber::GetPid),
+            7 => Some(SyscallNumber::GetPPid),
+            8 => Some(SyscallNumber::Fork),
+            9 => Some(SyscallNumber::Wait),
+            10 => Some(SyscallNumber::Kill),
+            11 => Some(SyscallNumber::Exec),
             _ => None,
         }
     }
@@ -57,6 +69,12 @@ pub fn syscall_handler(
         Some(SyscallNumber::GetTime) => syscall_get_time(),
         Some(SyscallNumber::GetTicks) => syscall_get_ticks(),
         Some(SyscallNumber::Sleep) => syscall_sleep(arg1),
+        Some(SyscallNumber::GetPid) => syscall_getpid(),
+        Some(SyscallNumber::GetPPid) => syscall_getppid(),
+        Some(SyscallNumber::Fork) => syscall_fork(),
+        Some(SyscallNumber::Wait) => syscall_wait(),
+        Some(SyscallNumber::Kill) => syscall_kill(arg1, arg2),
+        Some(SyscallNumber::Exec) => syscall_exec(arg1, arg2),
         None => {
             println!("Unknown syscall: {}", syscall_num);
             u64::MAX // Error code
@@ -121,6 +139,60 @@ fn syscall_sleep(ms: u64) -> u64 {
     }
 
     0
+}
+
+/// Syscall: Get current process ID
+fn syscall_getpid() -> u64 {
+    crate::process::current_pid().unwrap_or(0)
+}
+
+/// Syscall: Get parent process ID
+fn syscall_getppid() -> u64 {
+    if let Some(pid) = crate::process::current_pid() {
+        let table = crate::process::PROCESS_TABLE.lock();
+        if let Some(process) = table.get_process(pid) {
+            return process.parent_pid().unwrap_or(0);
+        }
+    }
+    0
+}
+
+/// Syscall: Fork current process (simplified - not fully implemented yet)
+fn syscall_fork() -> u64 {
+    // TODO: Full fork implementation requires copying process memory space
+    // For now, return an error
+    println!("fork() not yet implemented");
+    u64::MAX
+}
+
+/// Syscall: Wait for child process
+fn syscall_wait() -> u64 {
+    if let Some(pid) = crate::process::current_pid() {
+        if let Some((child_pid, exit_code)) = crate::process::wait_for_child(pid) {
+            // Return child PID in high 32 bits, exit code in low 32 bits
+            return ((child_pid as u64) << 32) | ((exit_code as u32) as u64);
+        }
+    }
+    u64::MAX // No children to wait for
+}
+
+/// Syscall: Kill a process
+/// arg1: target PID
+/// arg2: signal number
+fn syscall_kill(target_pid: u64, signal: u64) -> u64 {
+    match crate::process::kill(target_pid, signal as i32) {
+        Ok(()) => 0,
+        Err(_) => u64::MAX,
+    }
+}
+
+/// Syscall: Execute a program (simplified)
+/// arg1: pointer to program name
+/// arg2: length of program name
+fn syscall_exec(_name_ptr: u64, _name_len: u64) -> u64 {
+    // TODO: Full exec implementation requires program loading
+    println!("exec() not yet implemented");
+    u64::MAX
 }
 
 // User-space syscall API
@@ -208,6 +280,81 @@ pub fn sleep(ms: u64) {
             lateout("rax") _,
         );
     }
+}
+
+/// Get current process ID
+#[inline(always)]
+pub fn getpid() -> u64 {
+    let result: u64;
+    unsafe {
+        asm!(
+            "mov rax, 6",  // SyscallNumber::GetPid
+            "int 0x80",
+            lateout("rax") result,
+        );
+    }
+    result
+}
+
+/// Get parent process ID
+#[inline(always)]
+pub fn getppid() -> u64 {
+    let result: u64;
+    unsafe {
+        asm!(
+            "mov rax, 7",  // SyscallNumber::GetPPid
+            "int 0x80",
+            lateout("rax") result,
+        );
+    }
+    result
+}
+
+/// Fork current process (creates child process)
+#[inline(always)]
+pub fn fork() -> u64 {
+    let result: u64;
+    unsafe {
+        asm!(
+            "mov rax, 8",  // SyscallNumber::Fork
+            "int 0x80",
+            lateout("rax") result,
+        );
+    }
+    result
+}
+
+/// Wait for child process to terminate
+/// Returns (child_pid << 32) | exit_code, or u64::MAX if no children
+#[inline(always)]
+pub fn wait() -> u64 {
+    let result: u64;
+    unsafe {
+        asm!(
+            "mov rax, 9",  // SyscallNumber::Wait
+            "int 0x80",
+            lateout("rax") result,
+        );
+    }
+    result
+}
+
+/// Kill a process with a signal
+#[inline(always)]
+pub fn kill(pid: u64, signal: u64) -> u64 {
+    let result: u64;
+    unsafe {
+        asm!(
+            "mov rax, 10",  // SyscallNumber::Kill
+            "mov rdi, {0}",
+            "mov rsi, {1}",
+            "int 0x80",
+            in(reg) pid,
+            in(reg) signal,
+            lateout("rax") result,
+        );
+    }
+    result
 }
 
 /// Syscall macro for easier invocation

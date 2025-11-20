@@ -12,7 +12,8 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 - **Keyboard Input**: Real-time PS/2 keyboard driver with full character support
 - **CPU Context Switching**: Full register save/restore for true multitasking
 - **Task Scheduler**: Preemptive round-robin task scheduling with 10ms time slices
-- **System Calls**: INT 0x80 syscall interface with 6 syscalls (exit, yield, print, get_time, get_ticks, sleep)
+- **System Calls**: INT 0x80 syscall interface with 12 syscalls (exit, yield, print, get_time, get_ticks, sleep, getpid, getppid, fork, wait, kill, exec)
+- **Process Management**: Process control blocks, process table, lifecycle management, parent-child relationships
 
 ### User Environment
 - **Interactive Shell**: 39+ commands for system control
@@ -47,14 +48,21 @@ MyOS
 │   ├── Keyboard Driver
 │   ├── PIT Driver (Programmable Interval Timer)
 │   ├── Context Switching (CPU state save/restore)
-│   └── System Calls (INT 0x80 interface)
+│   └── System Calls (INT 0x80 interface - 12 syscalls)
+├── Process Management
+│   ├── Process Control Blocks (PCB)
+│   ├── Process Table & Lifecycle
+│   ├── Parent-Child Relationships
+│   ├── Process States (Ready/Running/Waiting/Sleeping/Zombie)
+│   ├── Priority Levels (Idle/Low/Normal/High/Realtime)
+│   └── File Descriptors & Working Directory
 ├── Task Management
 │   ├── Preemptive Scheduler (Round-Robin)
 │   ├── Task Creation & Execution
 │   ├── Manual Context Switch API
-│   └── Syscall API (exit, yield, print, get_time, get_ticks, sleep)
+│   └── Syscall API (12 total syscalls)
 ├── Shell & Scripting
-│   ├── Interactive Shell (40+ commands)
+│   ├── Interactive Shell (43+ commands)
 │   ├── HAL Script Language (full Turing-complete)
 │   ├── Persistent REPL
 │   └── AI Natural Language Processor
@@ -64,6 +72,7 @@ MyOS
 │   └── Unix-like Commands
 ├── Planned Features
 │   ├── User/Kernel Mode Separation (Ring 0/3)
+│   ├── Memory Isolation (per-process page tables)
 │   ├── Disk Drivers (ATA/AHCI)
 │   └── Network Stack
 ```
