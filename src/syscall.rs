@@ -22,6 +22,10 @@ pub enum SyscallNumber {
     Exec = 11,
     Signal = 12,
     SigMask = 13,
+    Pipe = 14,
+    Read = 15,
+    Write = 16,
+    Close = 17,
 }
 
 impl SyscallNumber {
@@ -41,6 +45,10 @@ impl SyscallNumber {
             11 => Some(SyscallNumber::Exec),
             12 => Some(SyscallNumber::Signal),
             13 => Some(SyscallNumber::SigMask),
+            14 => Some(SyscallNumber::Pipe),
+            15 => Some(SyscallNumber::Read),
+            16 => Some(SyscallNumber::Write),
+            17 => Some(SyscallNumber::Close),
             _ => None,
         }
     }
@@ -62,7 +70,7 @@ pub fn syscall_handler(
     syscall_num: u64,
     arg1: u64,
     arg2: u64,
-    _arg3: u64,
+    arg3: u64,
     _arg4: u64,
     _arg5: u64,
 ) -> u64 {
@@ -81,6 +89,10 @@ pub fn syscall_handler(
         Some(SyscallNumber::Exec) => syscall_exec(arg1, arg2),
         Some(SyscallNumber::Signal) => syscall_signal(arg1, arg2),
         Some(SyscallNumber::SigMask) => syscall_sigmask(arg1, arg2),
+        Some(SyscallNumber::Pipe) => syscall_pipe(arg1),
+        Some(SyscallNumber::Read) => syscall_read(arg1, arg2, arg3),
+        Some(SyscallNumber::Write) => syscall_write(arg1, arg2, arg3),
+        Some(SyscallNumber::Close) => syscall_close(arg1),
         None => {
             println!("Unknown syscall: {}", syscall_num);
             u64::MAX // Error code
@@ -262,6 +274,76 @@ fn syscall_sigmask(operation: u64, signal_num: u64) -> u64 {
     }
 
     u64::MAX
+}
+
+/// Syscall: Create a pipe
+/// arg1: pointer to array for [read_fd, write_fd]
+fn syscall_pipe(fds_ptr: u64) -> u64 {
+    match crate::pipe::create_pipe() {
+        Ok((read_fd, write_fd)) => {
+            // Write file descriptors to user memory
+            unsafe {
+                let fds = fds_ptr as *mut u32;
+                if !fds.is_null() {
+                    *fds.offset(0) = read_fd;
+                    *fds.offset(1) = write_fd;
+                    0
+                } else {
+                    u64::MAX
+                }
+            }
+        }
+        Err(_) => u64::MAX,
+    }
+}
+
+/// Syscall: Read from file descriptor
+/// arg1: file descriptor
+/// arg2: buffer pointer
+/// arg3: buffer length
+fn syscall_read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
+    if buf_ptr == 0 || len == 0 || len > 65536 {
+        return u64::MAX;
+    }
+
+    unsafe {
+        let buf = core::slice::from_raw_parts_mut(buf_ptr as *mut u8, len as usize);
+
+        // Try to read from pipe
+        match crate::pipe::read_pipe(fd as u32, buf) {
+            Ok(n) => n as u64,
+            Err(_) => u64::MAX,
+        }
+    }
+}
+
+/// Syscall: Write to file descriptor
+/// arg1: file descriptor
+/// arg2: buffer pointer
+/// arg3: buffer length
+fn syscall_write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
+    if buf_ptr == 0 || len == 0 || len > 65536 {
+        return u64::MAX;
+    }
+
+    unsafe {
+        let buf = core::slice::from_raw_parts(buf_ptr as *const u8, len as usize);
+
+        // Try to write to pipe
+        match crate::pipe::write_pipe(fd as u32, buf) {
+            Ok(n) => n as u64,
+            Err(_) => u64::MAX,
+        }
+    }
+}
+
+/// Syscall: Close file descriptor
+/// arg1: file descriptor
+fn syscall_close(fd: u64) -> u64 {
+    match crate::pipe::close_pipe(fd as u32) {
+        Ok(()) => 0,
+        Err(_) => u64::MAX,
+    }
 }
 
 // User-space syscall API

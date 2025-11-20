@@ -12,9 +12,10 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 - **Keyboard Input**: Real-time PS/2 keyboard driver with full character support
 - **CPU Context Switching**: Full register save/restore for true multitasking
 - **Task Scheduler**: Preemptive round-robin task scheduling with 10ms time slices
-- **System Calls**: INT 0x80 syscall interface with 14 syscalls (exit, yield, print, get_time, get_ticks, sleep, getpid, getppid, fork, wait, kill, exec, signal, sigmask)
+- **System Calls**: INT 0x80 syscall interface with 18 syscalls (exit, yield, print, get_time, get_ticks, sleep, getpid, getppid, fork, wait, kill, exec, signal, sigmask, pipe, read, write, close)
 - **Process Management**: Process control blocks, process table, lifecycle management, parent-child relationships
 - **Signal Handling**: Unix-like signals (20 signal types), signal masks, custom handlers, signal delivery
+- **Pipes (IPC)**: Unix-like pipes for inter-process communication, 4KB circular buffers, blocking/non-blocking modes
 
 ### User Environment
 - **Interactive Shell**: 39+ commands for system control
@@ -49,7 +50,7 @@ MyOS
 │   ├── Keyboard Driver
 │   ├── PIT Driver (Programmable Interval Timer)
 │   ├── Context Switching (CPU state save/restore)
-│   └── System Calls (INT 0x80 interface - 14 syscalls)
+│   └── System Calls (INT 0x80 interface - 18 syscalls)
 ├── Process Management
 │   ├── Process Control Blocks (PCB)
 │   ├── Process Table & Lifecycle
@@ -64,11 +65,17 @@ MyOS
 │   ├── Custom Signal Handlers
 │   ├── Pending Signal Queue
 │   └── Signal Delivery Mechanism
+├── Inter-Process Communication
+│   ├── Unix-like Pipes (pipe, read, write, close syscalls)
+│   ├── 4KB Circular Buffers
+│   ├── Reference-Counted Pipe Handles
+│   ├── Read/Write End Separation
+│   └── Non-blocking I/O Support
 ├── Task Management
 │   ├── Preemptive Scheduler (Round-Robin)
 │   ├── Task Creation & Execution
 │   ├── Manual Context Switch API
-│   └── Syscall API (14 total syscalls)
+│   └── Syscall API (18 total syscalls)
 ├── Shell & Scripting
 │   ├── Interactive Shell (43+ commands)
 │   ├── HAL Script Language (full Turing-complete)
