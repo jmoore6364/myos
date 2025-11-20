@@ -23,6 +23,7 @@ mod task;
 mod context;
 mod syscall;
 mod process;
+mod signal;
 
 lazy_static! {
     pub static ref SHELL: Mutex<shell::Shell> = Mutex::new(shell::Shell::new());

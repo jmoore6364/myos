@@ -12,8 +12,9 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 - **Keyboard Input**: Real-time PS/2 keyboard driver with full character support
 - **CPU Context Switching**: Full register save/restore for true multitasking
 - **Task Scheduler**: Preemptive round-robin task scheduling with 10ms time slices
-- **System Calls**: INT 0x80 syscall interface with 12 syscalls (exit, yield, print, get_time, get_ticks, sleep, getpid, getppid, fork, wait, kill, exec)
+- **System Calls**: INT 0x80 syscall interface with 14 syscalls (exit, yield, print, get_time, get_ticks, sleep, getpid, getppid, fork, wait, kill, exec, signal, sigmask)
 - **Process Management**: Process control blocks, process table, lifecycle management, parent-child relationships
+- **Signal Handling**: Unix-like signals (20 signal types), signal masks, custom handlers, signal delivery
 
 ### User Environment
 - **Interactive Shell**: 39+ commands for system control
@@ -48,19 +49,26 @@ MyOS
 │   ├── Keyboard Driver
 │   ├── PIT Driver (Programmable Interval Timer)
 │   ├── Context Switching (CPU state save/restore)
-│   └── System Calls (INT 0x80 interface - 12 syscalls)
+│   └── System Calls (INT 0x80 interface - 14 syscalls)
 ├── Process Management
 │   ├── Process Control Blocks (PCB)
 │   ├── Process Table & Lifecycle
 │   ├── Parent-Child Relationships
 │   ├── Process States (Ready/Running/Waiting/Sleeping/Zombie)
 │   ├── Priority Levels (Idle/Low/Normal/High/Realtime)
-│   └── File Descriptors & Working Directory
+│   ├── File Descriptors & Working Directory
+│   └── Signal Disposition (per-process)
+├── Signal Handling
+│   ├── 20 Unix-like Signals (SIGINT, SIGTERM, SIGKILL, etc.)
+│   ├── Signal Masks & Blocking
+│   ├── Custom Signal Handlers
+│   ├── Pending Signal Queue
+│   └── Signal Delivery Mechanism
 ├── Task Management
 │   ├── Preemptive Scheduler (Round-Robin)
 │   ├── Task Creation & Execution
 │   ├── Manual Context Switch API
-│   └── Syscall API (12 total syscalls)
+│   └── Syscall API (14 total syscalls)
 ├── Shell & Scripting
 │   ├── Interactive Shell (43+ commands)
 │   ├── HAL Script Language (full Turing-complete)

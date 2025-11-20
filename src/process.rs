@@ -65,6 +65,8 @@ pub struct Process {
     memory_usage: usize,
     /// CPU time used (ticks)
     cpu_time: u64,
+    /// Signal disposition
+    signal_disposition: crate::signal::SignalDisposition,
 }
 
 /// File descriptor (simplified for now)
@@ -93,6 +95,7 @@ impl Process {
             next_fd: 3, // 0=stdin, 1=stdout, 2=stderr
             memory_usage: 0,
             cpu_time: 0,
+            signal_disposition: crate::signal::SignalDisposition::new(),
         }
     }
 
@@ -220,6 +223,16 @@ impl Process {
     /// Increment CPU time
     pub fn add_cpu_time(&mut self, ticks: u64) {
         self.cpu_time += ticks;
+    }
+
+    /// Get signal disposition
+    pub fn signal_disposition(&self) -> Option<&crate::signal::SignalDisposition> {
+        Some(&self.signal_disposition)
+    }
+
+    /// Get mutable signal disposition
+    pub fn signal_disposition_mut(&mut self) -> Option<&mut crate::signal::SignalDisposition> {
+        Some(&mut self.signal_disposition)
     }
 }
 

@@ -20,6 +20,8 @@ pub enum SyscallNumber {
     Wait = 9,
     Kill = 10,
     Exec = 11,
+    Signal = 12,
+    SigMask = 13,
 }
 
 impl SyscallNumber {
@@ -37,6 +39,8 @@ impl SyscallNumber {
             9 => Some(SyscallNumber::Wait),
             10 => Some(SyscallNumber::Kill),
             11 => Some(SyscallNumber::Exec),
+            12 => Some(SyscallNumber::Signal),
+            13 => Some(SyscallNumber::SigMask),
             _ => None,
         }
     }
@@ -75,6 +79,8 @@ pub fn syscall_handler(
         Some(SyscallNumber::Wait) => syscall_wait(),
         Some(SyscallNumber::Kill) => syscall_kill(arg1, arg2),
         Some(SyscallNumber::Exec) => syscall_exec(arg1, arg2),
+        Some(SyscallNumber::Signal) => syscall_signal(arg1, arg2),
+        Some(SyscallNumber::SigMask) => syscall_sigmask(arg1, arg2),
         None => {
             println!("Unknown syscall: {}", syscall_num);
             u64::MAX // Error code
@@ -179,8 +185,15 @@ fn syscall_wait() -> u64 {
 /// Syscall: Kill a process
 /// arg1: target PID
 /// arg2: signal number
-fn syscall_kill(target_pid: u64, signal: u64) -> u64 {
-    match crate::process::kill(target_pid, signal as i32) {
+fn syscall_kill(target_pid: u64, signal_num: u64) -> u64 {
+    // Convert signal number to Signal enum
+    let signal = match crate::signal::Signal::from_u64(signal_num) {
+        Some(s) => s,
+        None => return u64::MAX, // Invalid signal
+    };
+
+    // Send signal to process
+    match crate::signal::send_signal(target_pid, signal) {
         Ok(()) => 0,
         Err(_) => u64::MAX,
     }
@@ -192,6 +205,62 @@ fn syscall_kill(target_pid: u64, signal: u64) -> u64 {
 fn syscall_exec(_name_ptr: u64, _name_len: u64) -> u64 {
     // TODO: Full exec implementation requires program loading
     println!("exec() not yet implemented");
+    u64::MAX
+}
+
+/// Syscall: Set signal handler
+/// arg1: signal number
+/// arg2: action (0=ignore, 1=default, addr=handler)
+fn syscall_signal(signal_num: u64, action: u64) -> u64 {
+    let signal = match crate::signal::Signal::from_u64(signal_num) {
+        Some(s) => s,
+        None => return u64::MAX, // Invalid signal
+    };
+
+    let signal_action = match action {
+        0 => crate::signal::SignalAction::Ignore,
+        1 => signal.default_action(),
+        addr => crate::signal::SignalAction::Handler(addr),
+    };
+
+    if let Some(pid) = crate::process::current_pid() {
+        let mut table = crate::process::PROCESS_TABLE.lock();
+        if let Some(process) = table.get_process_mut(pid) {
+            if let Some(disposition) = process.signal_disposition_mut() {
+                match disposition.set_handler(signal, signal_action) {
+                    Ok(()) => return 0,
+                    Err(_) => return u64::MAX,
+                }
+            }
+        }
+    }
+
+    u64::MAX
+}
+
+/// Syscall: Set signal mask (block/unblock signals)
+/// arg1: operation (0=block, 1=unblock, 2=setmask)
+/// arg2: signal number or mask
+fn syscall_sigmask(operation: u64, signal_num: u64) -> u64 {
+    let signal = match crate::signal::Signal::from_u64(signal_num) {
+        Some(s) => s,
+        None => return u64::MAX, // Invalid signal
+    };
+
+    if let Some(pid) = crate::process::current_pid() {
+        let mut table = crate::process::PROCESS_TABLE.lock();
+        if let Some(process) = table.get_process_mut(pid) {
+            if let Some(disposition) = process.signal_disposition_mut() {
+                match operation {
+                    0 => disposition.block(signal),   // Block
+                    1 => disposition.unblock(signal), // Unblock
+                    _ => return u64::MAX,
+                }
+                return 0;
+            }
+        }
+    }
+
     u64::MAX
 }
 
