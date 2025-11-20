@@ -20,11 +20,68 @@ mod shell;
 mod halscript;
 mod vfs;
 mod task;
+mod context;
 
 lazy_static! {
     pub static ref SHELL: Mutex<shell::Shell> = Mutex::new(shell::Shell::new());
     pub static ref HAL_REPL: Mutex<halscript::Interpreter> = Mutex::new(halscript::Interpreter::new());
     pub static ref SCHEDULER: Mutex<task::Scheduler> = Mutex::new(task::Scheduler::new());
+}
+
+/// Test task functions
+extern "C" fn task_a() {
+    let mut counter = 0;
+    loop {
+        println!("Task A running (iteration {})", counter);
+        counter += 1;
+
+        // Yield to other tasks
+        for _ in 0..100000 {
+            core::hint::spin_loop();
+        }
+    }
+}
+
+extern "C" fn task_b() {
+    let mut counter = 0;
+    loop {
+        println!("  Task B running (iteration {})", counter);
+        counter += 1;
+
+        // Yield to other tasks
+        for _ in 0..100000 {
+            core::hint::spin_loop();
+        }
+    }
+}
+
+extern "C" fn task_c() {
+    let mut counter = 0;
+    loop {
+        println!("    Task C running (iteration {})", counter);
+        counter += 1;
+
+        // Yield to other tasks
+        for _ in 0..100000 {
+            core::hint::spin_loop();
+        }
+    }
+}
+
+/// Initialize test tasks for demonstrating multitasking
+fn init_test_tasks() {
+    let mut scheduler = SCHEDULER.lock();
+
+    // Create three test tasks
+    let task_a = task::Task::new(alloc::string::String::from("Task A"), 1, task_a);
+    let task_b = task::Task::new(alloc::string::String::from("Task B"), 1, task_b);
+    let task_c = task::Task::new(alloc::string::String::from("Task C"), 1, task_c);
+
+    scheduler.add_task(task_a);
+    scheduler.add_task(task_b);
+    scheduler.add_task(task_c);
+
+    println!("  Created {} tasks", scheduler.task_count());
 }
 
 /// Entry point for the kernel
@@ -54,8 +111,13 @@ pub extern "C" fn _start(boot_info: &'static mut bootloader::BootInfo) -> ! {
     println!("[6/7] Initializing PIT...");
     pit::init();
 
-    println!("[7/7] Enabling interrupts...");
+    println!("[7/9] Enabling interrupts...");
     x86_64::instructions::interrupts::enable();
+
+    println!("[8/9] Creating test tasks...");
+    init_test_tasks();
+
+    println!("[9/9] Starting scheduler...");
 
     println!();
     println!("✓ Kernel initialized successfully!");

@@ -95,6 +95,7 @@ impl Shell {
             "spawn" => self.cmd_spawn(args),
             "kill" => self.cmd_kill(args),
             "sched" => self.cmd_sched(args),
+            "switch" => self.cmd_switch(args),
             "" => {},
             _ => {
                 println!("Unknown command: '{}'. Type 'help' for available commands.", command);
@@ -146,6 +147,7 @@ impl Shell {
         println!("  spawn <name> <priority> - Create a new task");
         println!("  kill <task_id>  - Terminate a task");
         println!("  sched           - Show scheduler status");
+        println!("  switch <id>     - Switch to task (testing)");
         println!();
         println!("Other:");
         println!("  echo <text>     - Print text to the screen");
@@ -790,7 +792,14 @@ impl Shell {
             5  // Default priority
         };
 
-        let task = Task::new(name, priority);
+        // Default task function for shell-spawned tasks
+        extern "C" fn default_task() {
+            loop {
+                x86_64::instructions::hlt();
+            }
+        }
+
+        let task = Task::new(name, priority, default_task);
         let task_id = task.id();
 
         let mut scheduler = SCHEDULER.lock();
@@ -831,5 +840,35 @@ impl Shell {
         println!("  Total tasks:  {}", scheduler.task_count());
         println!("  Ready tasks:  {}", scheduler.ready_task_count());
         println!("  Scheduler:    Round-Robin");
+    }
+
+    fn cmd_switch(&self, args: &[&str]) {
+        use crate::SCHEDULER;
+
+        if args.is_empty() {
+            println!("Usage: switch <task_id>");
+            println!("Manually switch to a specific task (for testing context switching)");
+            return;
+        }
+
+        let task_id = match args[0].parse::<u64>() {
+            Ok(id) => id,
+            Err(_) => {
+                println!("Error: Invalid task ID");
+                return;
+            }
+        };
+
+        println!("Attempting to switch to task {}...", task_id);
+
+        let mut scheduler = SCHEDULER.lock();
+        match scheduler.switch_to(task_id) {
+            Ok(()) => {
+                println!("Successfully switched to task {}", task_id);
+            }
+            Err(e) => {
+                println!("Error switching to task: {}", e);
+            }
+        }
     }
 }

@@ -10,7 +10,8 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 - **Interrupt Handling**: Hardware interrupts (keyboard, timer)
 - **VGA Text Mode**: Color terminal output with 16-color palette
 - **Keyboard Input**: Real-time PS/2 keyboard driver with full character support
-- **Task Scheduler**: Cooperative round-robin task scheduling
+- **CPU Context Switching**: Full register save/restore for true multitasking
+- **Task Scheduler**: Preemptive round-robin task scheduling with 10ms time slices
 
 ### User Environment
 - **Interactive Shell**: 39+ commands for system control
@@ -27,7 +28,8 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 ### Development
 - **Rust Powered**: Memory-safe kernel with zero-cost abstractions
 - **Production-Ready Kernel**: 16+ CPU exception handlers for stability
-- **Preemptive Scheduling**: Real-time task switching every 10ms
+- **True Multitasking**: Assembly-level context switching with full CPU state save/restore
+- **PIT Driver**: Programmable Interval Timer for 100 Hz task scheduling
 - **Extensible**: Easy to add new commands and features
 
 ## Architecture
@@ -40,9 +42,15 @@ MyOS
 │   ├── IDT (Interrupt Descriptor Table)
 │   ├── Memory Management (Paging + Heap)
 │   ├── VGA Buffer Driver
-│   └── Keyboard Driver
+│   ├── Keyboard Driver
+│   ├── PIT Driver (Programmable Interval Timer)
+│   └── Context Switching (CPU state save/restore)
+├── Task Management
+│   ├── Preemptive Scheduler (Round-Robin)
+│   ├── Task Creation & Execution
+│   └── Manual Context Switch API
 ├── Shell & Scripting
-│   ├── Interactive Shell (30+ commands)
+│   ├── Interactive Shell (40+ commands)
 │   ├── HAL Script Language (full Turing-complete)
 │   ├── Persistent REPL
 │   └── AI Natural Language Processor
@@ -51,7 +59,8 @@ MyOS
 │   ├── Directory Tree (/home, /scripts, /tmp)
 │   └── Unix-like Commands
 ├── Planned Features
-│   ├── Task Scheduler
+│   ├── User/Kernel Mode Separation
+│   ├── System Calls
 │   ├── Disk Drivers (ATA/AHCI)
 │   └── Network Stack
 ```
