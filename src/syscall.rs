@@ -26,6 +26,10 @@ pub enum SyscallNumber {
     Read = 15,
     Write = 16,
     Close = 17,
+    ShmGet = 18,
+    ShmAt = 19,
+    ShmDt = 20,
+    ShmCtl = 21,
 }
 
 impl SyscallNumber {
@@ -49,6 +53,10 @@ impl SyscallNumber {
             15 => Some(SyscallNumber::Read),
             16 => Some(SyscallNumber::Write),
             17 => Some(SyscallNumber::Close),
+            18 => Some(SyscallNumber::ShmGet),
+            19 => Some(SyscallNumber::ShmAt),
+            20 => Some(SyscallNumber::ShmDt),
+            21 => Some(SyscallNumber::ShmCtl),
             _ => None,
         }
     }
@@ -93,6 +101,10 @@ pub fn syscall_handler(
         Some(SyscallNumber::Read) => syscall_read(arg1, arg2, arg3),
         Some(SyscallNumber::Write) => syscall_write(arg1, arg2, arg3),
         Some(SyscallNumber::Close) => syscall_close(arg1),
+        Some(SyscallNumber::ShmGet) => syscall_shmget(arg1, arg2, arg3),
+        Some(SyscallNumber::ShmAt) => syscall_shmat(arg1, arg2),
+        Some(SyscallNumber::ShmDt) => syscall_shmdt(arg1),
+        Some(SyscallNumber::ShmCtl) => syscall_shmctl(arg1, arg2),
         None => {
             println!("Unknown syscall: {}", syscall_num);
             u64::MAX // Error code
@@ -346,6 +358,46 @@ fn syscall_close(fd: u64) -> u64 {
     }
 }
 
+/// Syscall: Get or create shared memory segment
+/// arg1: key (i32)
+/// arg2: size (usize)
+/// arg3: flags (i32)
+fn syscall_shmget(key: u64, size: u64, flags: u64) -> u64 {
+    match crate::shm::shmget(key as i32, size as usize, flags as i32) {
+        Ok(id) => id,
+        Err(_) => u64::MAX,
+    }
+}
+
+/// Syscall: Attach to shared memory segment
+/// arg1: shared memory ID
+/// arg2: flags (i32)
+fn syscall_shmat(id: u64, flags: u64) -> u64 {
+    match crate::shm::shmat(id, flags as i32) {
+        Ok(addr) => addr as u64,
+        Err(_) => u64::MAX,
+    }
+}
+
+/// Syscall: Detach from shared memory segment
+/// arg1: address
+fn syscall_shmdt(addr: u64) -> u64 {
+    match crate::shm::shmdt(addr as usize) {
+        Ok(()) => 0,
+        Err(_) => u64::MAX,
+    }
+}
+
+/// Syscall: Control shared memory segment
+/// arg1: shared memory ID
+/// arg2: command (IPC_RMID, IPC_STAT, IPC_SET)
+fn syscall_shmctl(id: u64, cmd: u64) -> u64 {
+    match crate::shm::shmctl(id, cmd as i32) {
+        Ok(_stat) => 0,
+        Err(_) => u64::MAX,
+    }
+}
+
 // User-space syscall API
 // These functions can be called from tasks to invoke system calls
 
@@ -565,4 +617,60 @@ pub fn syscall2(num: u64, arg1: u64, arg2: u64) -> u64 {
         );
     }
     result
+}
+
+/// Raw syscall with 3 arguments
+#[inline(always)]
+pub fn syscall3(num: u64, arg1: u64, arg2: u64, arg3: u64) -> u64 {
+    let result: u64;
+    unsafe {
+        asm!(
+            "int 0x80",
+            in("rax") num,
+            in("rdi") arg1,
+            in("rsi") arg2,
+            in("rdx") arg3,
+            lateout("rax") result,
+        );
+    }
+    result
+}
+
+// Shared Memory API
+
+/// Get or create a shared memory segment
+/// Returns shared memory ID or u64::MAX on error
+#[inline(always)]
+pub fn shmget(key: i32, size: usize, flags: i32) -> u64 {
+    syscall3(
+        SyscallNumber::ShmGet as u64,
+        key as u64,
+        size as u64,
+        flags as u64,
+    )
+}
+
+/// Attach to a shared memory segment
+/// Returns address or u64::MAX on error
+#[inline(always)]
+pub fn shmat(shm_id: u64, flags: i32) -> u64 {
+    syscall2(
+        SyscallNumber::ShmAt as u64,
+        shm_id,
+        flags as u64,
+    )
+}
+
+/// Detach from a shared memory segment
+/// Returns 0 on success or u64::MAX on error
+#[inline(always)]
+pub fn shmdt(addr: u64) -> u64 {
+    syscall1(SyscallNumber::ShmDt as u64, addr)
+}
+
+/// Control shared memory segment
+/// Returns 0 on success or u64::MAX on error
+#[inline(always)]
+pub fn shmctl(shm_id: u64, cmd: i32) -> u64 {
+    syscall2(SyscallNumber::ShmCtl as u64, shm_id, cmd as u64)
 }
