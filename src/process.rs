@@ -67,6 +67,8 @@ pub struct Process {
     cpu_time: u64,
     /// Signal disposition
     signal_disposition: crate::signal::SignalDisposition,
+    /// Page table physical address (CR3 value) - None means using kernel page table
+    page_table_phys: Option<x86_64::PhysAddr>,
 }
 
 /// File descriptor (simplified for now)
@@ -82,6 +84,9 @@ impl Process {
     pub fn new(name: String, parent_pid: Option<Pid>) -> Self {
         let pid = NEXT_PID.fetch_add(1, Ordering::Relaxed);
 
+        // Create a per-process page table
+        let page_table_phys = crate::memory::process_memory::create_process_page_table();
+
         Process {
             pid,
             parent_pid,
@@ -96,6 +101,7 @@ impl Process {
             memory_usage: 0,
             cpu_time: 0,
             signal_disposition: crate::signal::SignalDisposition::new(),
+            page_table_phys,
         }
     }
 
@@ -132,6 +138,11 @@ impl Process {
     /// Set process priority
     pub fn set_priority(&mut self, priority: Priority) {
         self.priority = priority;
+    }
+
+    /// Get page table physical address (for context switching)
+    pub fn page_table_phys(&self) -> Option<x86_64::PhysAddr> {
+        self.page_table_phys
     }
 
     /// Get exit code (if zombie)

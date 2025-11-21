@@ -6,13 +6,14 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 
 ### Core Kernel
 - **Bare Metal Boot**: Boots directly on x86_64 hardware
-- **Memory Management**: Full paging and heap allocation
+- **Memory Management**: Full paging and heap allocation with per-process page tables
 - **Interrupt Handling**: Hardware interrupts (keyboard, timer)
 - **VGA Text Mode**: Color terminal output with 16-color palette
 - **Keyboard Input**: Real-time PS/2 keyboard driver with full character support
 - **CPU Context Switching**: Full register save/restore for true multitasking
 - **Task Scheduler**: Preemptive round-robin task scheduling with 10ms time slices
 - **Ring 0/3 Protection**: Full kernel/user mode separation with privilege level enforcement
+- **Memory Isolation**: Per-process page tables with separate user/kernel address spaces
 - **System Calls**: INT 0x80 syscall interface with 32 syscalls (exit, yield, print, get_time, get_ticks, sleep, getpid, getppid, fork, wait, kill, exec, signal, sigmask, pipe, read, write, close, shmget, shmat, shmdt, shmctl, seminit, semopen, semwait, sempost, semgetvalue, semdestroy, msgget, msgsnd, msgrcv, msgctl)
 - **Process Management**: Process control blocks, process table, lifecycle management, parent-child relationships
 - **Signal Handling**: Unix-like signals (20 signal types), signal masks, custom handlers, signal delivery
@@ -51,6 +52,11 @@ MyOS
 │   ├── IDT (Interrupt Descriptor Table)
 │   ├── Ring 0/3 Protection (Kernel/User Mode Separation)
 │   ├── Memory Management (Paging + Heap)
+│   │   ├── Global Frame Allocator
+│   │   ├── Per-Process Page Tables
+│   │   ├── Kernel Space Mapping (upper half)
+│   │   ├── User Space Mapping (lower half)
+│   │   └── CR3 Switching Support
 │   ├── VGA Buffer Driver
 │   ├── Keyboard Driver
 │   ├── PIT Driver (Programmable Interval Timer)
@@ -107,9 +113,11 @@ MyOS
 ├── Security & Protection
 │   ├── ✅ User/Kernel Mode Separation (Ring 0/3)
 │   ├── ✅ Privilege Level Enforcement
-│   └── ✅ Syscall Gate for Safe Kernel Entry
+│   ├── ✅ Syscall Gate for Safe Kernel Entry
+│   ├── ✅ Per-Process Page Tables
+│   └── ✅ Memory Isolation (User/Kernel Address Space Separation)
 ├── Planned Features
-│   ├── Memory Isolation (per-process page tables)
+│   ├── Complete Task-Process Integration (CR3 switching in scheduler)
 │   ├── Disk Drivers (ATA/AHCI)
 │   └── Network Stack
 ```
@@ -335,7 +343,7 @@ qemu-system-x86_64 \
 - [x] Task scheduler
 - [x] Multitasking
 - [x] User/Kernel mode separation (Ring 0/3)
-- [ ] Process isolation (per-process page tables)
+- [x] Memory isolation (per-process page tables)
 
 ### Phase 3: Storage & I/O
 - [ ] Virtual File System

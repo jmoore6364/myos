@@ -1,7 +1,15 @@
 use x86_64::{
-    structures::paging::{PageTable, OffsetPageTable, PhysFrame, Size4KiB, FrameAllocator},
+    structures::paging::{PageTable, OffsetPageTable, PhysFrame, Size4KiB, FrameAllocator, PageTableFlags, Mapper, Page},
     VirtAddr, PhysAddr,
 };
+use spin::Mutex;
+use lazy_static::lazy_static;
+
+// Global frame allocator for runtime page table management
+lazy_static! {
+    pub static ref FRAME_ALLOCATOR: Mutex<Option<BootInfoFrameAllocator>> = Mutex::new(None);
+    pub static ref PHYS_MEM_OFFSET: Mutex<VirtAddr> = Mutex::new(VirtAddr::new(0));
+}
 
 /// Initialize memory management
 pub fn init(boot_info: &'static mut bootloader::BootInfo) {
@@ -13,6 +21,10 @@ pub fn init(boot_info: &'static mut bootloader::BootInfo) {
 
     allocator::init_heap(&mut mapper, &mut frame_allocator)
         .expect("heap initialization failed");
+
+    // Store the physical memory offset and frame allocator globally
+    *PHYS_MEM_OFFSET.lock() = phys_mem_offset;
+    *FRAME_ALLOCATOR.lock() = Some(frame_allocator);
 }
 
 /// Returns a mutable reference to the active level 4 table
@@ -110,5 +122,124 @@ pub mod allocator {
         }
 
         Ok(())
+    }
+}
+
+/// Per-process page table management
+pub mod process_memory {
+    use super::*;
+    use x86_64::structures::paging::{PageTableFlags, PhysFrame, FrameDeallocator};
+    use x86_64::registers::control::Cr3;
+
+    /// User space memory region (starts at 0x1000_0000 = 256 MB)
+    pub const USER_SPACE_START: u64 = 0x1000_0000;
+    pub const USER_SPACE_END: u64 = 0x8000_0000; // 2 GB
+
+    /// Create a new page table for a process by cloning the kernel mappings
+    ///
+    /// This creates a new level 4 page table and copies the kernel-space mappings
+    /// from the current page table. User space is left unmapped initially.
+    ///
+    /// Returns the physical address of the new page table (to be loaded into CR3)
+    pub fn create_process_page_table() -> Option<PhysAddr> {
+        let phys_offset = *PHYS_MEM_OFFSET.lock();
+        let mut frame_allocator = FRAME_ALLOCATOR.lock();
+        let frame_allocator = frame_allocator.as_mut()?;
+
+        // Allocate a frame for the new level 4 table
+        let new_l4_frame = frame_allocator.allocate_frame()?;
+        let new_l4_phys = new_l4_frame.start_address();
+
+        unsafe {
+            // Get the current level 4 table
+            let (current_l4_frame, _) = Cr3::read();
+            let current_l4_phys = current_l4_frame.start_address();
+            let current_l4_virt = phys_offset + current_l4_phys.as_u64();
+            let current_l4_table: &PageTable = &*(current_l4_virt.as_ptr() as *const PageTable);
+
+            // Get the new level 4 table
+            let new_l4_virt = phys_offset + new_l4_phys.as_u64();
+            let new_l4_table: &mut PageTable = &mut *(new_l4_virt.as_mut_ptr() as *mut PageTable);
+
+            // Clear the new table
+            new_l4_table.zero();
+
+            // Copy kernel-space mappings (upper half: entries 256-511)
+            // User space (entries 0-255) is left empty for per-process mappings
+            for i in 256..512 {
+                new_l4_table[i] = current_l4_table[i].clone();
+            }
+        }
+
+        Some(new_l4_phys)
+    }
+
+    /// Free a process page table
+    ///
+    /// This recursively frees all page tables associated with a process.
+    /// Kernel mappings are NOT freed as they are shared.
+    ///
+    /// # Safety
+    /// This must not be called while the page table is active in CR3
+    pub unsafe fn free_process_page_table(page_table_phys: PhysAddr) {
+        // For now, we don't implement recursive freeing to avoid complexity
+        // In a real OS, we would:
+        // 1. Walk through user space entries (0-255)
+        // 2. Free all user page tables recursively
+        // 3. Free the L4 table itself
+        // This is left as a future enhancement
+        let _ = page_table_phys; // Silence unused warning
+    }
+
+    /// Switch to a process's page table
+    ///
+    /// # Safety
+    /// The caller must ensure the page table is valid and properly set up
+    pub unsafe fn switch_to_page_table(page_table_phys: PhysAddr) {
+        use x86_64::registers::control::Cr3;
+        use x86_64::structures::paging::PageTableFlags as Flags;
+
+        let frame = PhysFrame::containing_address(page_table_phys);
+        let flags = Cr3::read().1; // Keep current flags
+        Cr3::write(frame, flags);
+    }
+
+    /// Get the current page table physical address
+    pub fn get_current_page_table() -> PhysAddr {
+        use x86_64::registers::control::Cr3;
+        let (frame, _) = Cr3::read();
+        frame.start_address()
+    }
+
+    /// Allocate a page in user space for a process
+    ///
+    /// Returns the virtual address of the allocated page
+    pub fn allocate_user_page(page_table_phys: PhysAddr, virt_addr: VirtAddr) -> Option<()> {
+        let phys_offset = *PHYS_MEM_OFFSET.lock();
+        let mut frame_allocator = FRAME_ALLOCATOR.lock();
+        let frame_allocator = frame_allocator.as_mut()?;
+
+        // Allocate a physical frame
+        let frame = frame_allocator.allocate_frame()?;
+
+        unsafe {
+            // Create a mapper for this page table
+            let l4_virt = phys_offset + page_table_phys.as_u64();
+            let l4_table: &mut PageTable = &mut *(l4_virt.as_mut_ptr() as *mut PageTable);
+            let mut mapper = OffsetPageTable::new(l4_table, phys_offset);
+
+            // Map the page with user-accessible flags
+            let page = Page::containing_address(virt_addr);
+            let flags = PageTableFlags::PRESENT
+                | PageTableFlags::WRITABLE
+                | PageTableFlags::USER_ACCESSIBLE;
+
+            mapper
+                .map_to(page, frame, flags, frame_allocator)
+                .ok()?
+                .flush();
+        }
+
+        Some(())
     }
 }
