@@ -102,6 +102,9 @@ impl Shell {
             "diskinfo" => self.cmd_diskinfo(args),
             "diskread" => self.cmd_diskread(args),
             "diskwrite" => self.cmd_diskwrite(args),
+            // Filesystem commands
+            "fsformat" => self.cmd_fsformat(args),
+            "fsinfo" => self.cmd_fsinfo(args),
             "" => {},
             _ => {
                 println!("Unknown command: '{}'. Type 'help' for available commands.", command);
@@ -164,6 +167,10 @@ impl Shell {
         println!("  diskinfo        - Show disk information");
         println!("  diskread <sector> - Read and display a disk sector");
         println!("  diskwrite <sector> <data> - Write data to a disk sector");
+        println!();
+        println!("Filesystem:");
+        println!("  fsformat        - Format disk with SimpleFS");
+        println!("  fsinfo          - Show filesystem information");
         println!();
         println!("Other:");
         println!("  echo <text>     - Print text to the screen");
@@ -1094,6 +1101,52 @@ impl Shell {
             }
             Err(_) => {
                 println!("Error writing to sector {}", sector);
+            }
+        }
+    }
+
+    // Filesystem commands
+
+    fn cmd_fsformat(&self, _args: &[&str]) {
+        use crate::simplefs;
+
+        println!("WARNING: This will erase all data on the disk!");
+        println!("Formatting disk with SimpleFS...");
+        println!();
+
+        match simplefs::format() {
+            Ok(_) => {
+                println!("Filesystem formatted and mounted successfully");
+            }
+            Err(e) => {
+                println!("Error formatting filesystem: {}", e);
+            }
+        }
+    }
+
+    fn cmd_fsinfo(&self, _args: &[&str]) {
+        use crate::simplefs;
+
+        match simplefs::get_info() {
+            Some((total_inodes, free_inodes, total_blocks, free_blocks)) => {
+                println!("SimpleFS Information:");
+                println!("  Inodes:");
+                println!("    Total: {}", total_inodes);
+                println!("    Free: {}", free_inodes);
+                println!("    Used: {}", total_inodes - free_inodes);
+                println!("  Data Blocks:");
+                println!("    Total: {}", total_blocks);
+                println!("    Free: {}", free_blocks);
+                println!("    Used: {}", total_blocks - free_blocks);
+                println!("  Storage:");
+                println!("    Block size: 512 bytes");
+                println!("    Total capacity: {} KB", total_blocks / 2);
+                println!("    Used: {} KB", (total_blocks - free_blocks) / 2);
+                println!("    Free: {} KB", free_blocks / 2);
+            }
+            None => {
+                println!("Filesystem not mounted");
+                println!("Use 'fsformat' to format the disk");
             }
         }
     }

@@ -15,13 +15,14 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 - **Ring 0/3 Protection**: Full kernel/user mode separation with privilege level enforcement
 - **Memory Isolation**: Per-process page tables with separate user/kernel address spaces
 - **Disk I/O**: ATA/IDE disk driver with PIO mode, LBA28 addressing, and sector read/write
+- **Filesystem**: SimpleFS - custom filesystem with inodes, directories, and persistent storage
 - **System Calls**: INT 0x80 syscall interface with 32 syscalls (exit, yield, print, get_time, get_ticks, sleep, getpid, getppid, fork, wait, kill, exec, signal, sigmask, pipe, read, write, close, shmget, shmat, shmdt, shmctl, seminit, semopen, semwait, sempost, semgetvalue, semdestroy, msgget, msgsnd, msgrcv, msgctl)
 - **Process Management**: Process control blocks, process table, lifecycle management, parent-child relationships
 - **Signal Handling**: Unix-like signals (20 signal types), signal masks, custom handlers, signal delivery
 - **IPC Mechanisms**: Unix-like pipes (4KB circular buffers), signals (20 types), shared memory (System V-style), semaphores (POSIX-style), message queues (System V-style)
 
 ### User Environment
-- **Interactive Shell**: 42+ commands for system control
+- **Interactive Shell**: 44+ commands for system control
 - **Virtual File System**: In-memory VFS with Unix-like commands (ls, cd, cat, mkdir, touch, rm, write, exec)
 - **HAL Script Language**: Turing-complete language with 32 built-ins and module system (see [HALSCRIPT.md](HALSCRIPT.md))
 - **Persistent REPL**: Variables and functions survive across commands
@@ -118,8 +119,14 @@ MyOS
 │   └── Disk Information Commands
 ├── File System
 │   ├── Virtual File System (VFS)
-│   ├── Directory Tree (/home, /scripts, /tmp)
-│   └── Unix-like Commands
+│   │   ├── Directory Tree (/home, /scripts, /tmp)
+│   │   └── Unix-like Commands
+│   └── SimpleFS (Persistent Filesystem)
+│       ├── Superblock & Metadata
+│       ├── Inode Management (500 inodes)
+│       ├── Data Block Allocation (1000 blocks)
+│       ├── Directory Support
+│       └── File Operations (create, read, write)
 ├── Security & Protection
 │   ├── ✅ User/Kernel Mode Separation (Ring 0/3)
 │   ├── ✅ Privilege Level Enforcement
@@ -129,7 +136,7 @@ MyOS
 ├── Planned Features
 │   ├── Complete Task-Process Integration (CR3 switching in scheduler)
 │   ├── AHCI Driver (advanced disk interface)
-│   ├── Filesystem (FAT32/ext2)
+│   ├── FAT32/ext2 support (industry-standard filesystems)
 │   └── Network Stack
 ```
 
@@ -255,6 +262,10 @@ Once the OS boots, try these commands:
 > diskwrite 100 "Hello from MyOS!"
 > diskread 100
 
+# Filesystem
+> fsformat
+> fsinfo
+
 # System commands
 > help
 > about
@@ -362,10 +373,11 @@ qemu-system-x86_64 \
 - [x] User/Kernel mode separation (Ring 0/3)
 - [x] Memory isolation (per-process page tables)
 
-### Phase 3: Storage & I/O
+### Phase 3: Storage & I/O ✅
 - [x] ATA/IDE disk driver (PIO mode)
+- [x] SimpleFS (custom filesystem with inodes and persistent storage)
 - [ ] AHCI driver (DMA mode)
-- [ ] Basic filesystem (FAT32 or ext2)
+- [ ] FAT32/ext2 support
 
 ### Phase 4: User Interface
 - [ ] Command shell

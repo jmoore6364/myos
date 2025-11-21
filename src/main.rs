@@ -29,6 +29,7 @@ mod shm;
 mod sem;
 mod msgq;
 mod ata;
+mod simplefs;
 
 lazy_static! {
     pub static ref SHELL: Mutex<shell::Shell> = Mutex::new(shell::Shell::new());
@@ -184,16 +185,19 @@ pub extern "C" fn _start(boot_info: &'static mut bootloader::BootInfo) -> ! {
     println!("[7/11] Initializing process subsystem...");
     process::init();
 
-    println!("[8/11] Initializing ATA disk driver...");
+    println!("[8/12] Initializing ATA disk driver...");
     ata::init();
 
-    println!("[9/11] Enabling interrupts...");
+    println!("[9/12] Initializing filesystem...");
+    simplefs::init();
+
+    println!("[10/12] Enabling interrupts...");
     x86_64::instructions::interrupts::enable();
 
-    println!("[10/11] Creating test tasks...");
+    println!("[11/12] Creating test tasks...");
     init_test_tasks();
 
-    println!("[11/11] Starting scheduler...");
+    println!("[12/12] Starting scheduler...");
 
     println!();
     println!("✓ Kernel initialized successfully!");
