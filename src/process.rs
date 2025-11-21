@@ -245,6 +245,71 @@ impl Process {
     pub fn signal_disposition_mut(&mut self) -> Option<&mut crate::signal::SignalDisposition> {
         Some(&mut self.signal_disposition)
     }
+
+    /// Load an ELF binary into this process's address space
+    ///
+    /// This parses the ELF binary and loads all PT_LOAD segments into the
+    /// process's page table. Returns the entry point address on success.
+    pub fn load_elf(&mut self, elf_data: &[u8]) -> Result<u64, &'static str> {
+        use crate::elf::ElfBinary;
+
+        // Get the process's page table
+        let page_table_phys = self.page_table_phys
+            .ok_or("Process has no page table")?;
+
+        // Parse the ELF binary
+        let elf = ElfBinary::parse(elf_data)?;
+
+        // Load the binary into the process's page table
+        let entry_point = elf.load_into_process(page_table_phys)?;
+
+        // Update memory usage estimate (simplified)
+        let total_size: usize = elf.segments.iter()
+            .map(|seg| seg.memsz)
+            .sum();
+        self.memory_usage += total_size;
+
+        Ok(entry_point)
+    }
+
+    /// Set up a user-mode stack for this process
+    ///
+    /// Allocates and maps a stack in user space. Returns the initial stack pointer
+    /// (top of stack, grows downward).
+    ///
+    /// Stack layout (x86-64):
+    /// - Stack grows downward from high address
+    /// - Typical location: 0x7FFFFFFFFFFF (top of user space)
+    /// - Default size: 8 MB (2048 pages)
+    pub fn setup_user_stack(&mut self) -> Result<u64, &'static str> {
+        use crate::memory::process_memory;
+        use x86_64::VirtAddr;
+
+        // Get the process's page table
+        let page_table_phys = self.page_table_phys
+            .ok_or("Process has no page table")?;
+
+        // User stack configuration
+        const STACK_SIZE: usize = 8 * 1024 * 1024; // 8 MB
+        const STACK_TOP: u64 = 0x7FFF_FFFF_F000; // Just below 2GB user space limit
+        let stack_bottom = STACK_TOP - STACK_SIZE as u64;
+
+        // Allocate pages for the stack (bottom to top)
+        let pages_needed = STACK_SIZE / 4096;
+
+        for i in 0..pages_needed {
+            let vaddr = VirtAddr::new(stack_bottom + (i as u64 * 4096));
+
+            process_memory::allocate_user_page(page_table_phys, vaddr)
+                .ok_or("Failed to allocate user stack page")?;
+        }
+
+        // Update memory usage
+        self.memory_usage += STACK_SIZE;
+
+        // Return stack pointer (aligned to 16 bytes as required by x86-64 ABI)
+        Ok(STACK_TOP & !0xF)
+    }
 }
 
 /// Process table - global registry of all processes

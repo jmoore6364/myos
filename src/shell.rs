@@ -105,6 +105,8 @@ impl Shell {
             // Filesystem commands
             "fsformat" => self.cmd_fsformat(args),
             "fsinfo" => self.cmd_fsinfo(args),
+            // ELF loader
+            "loadelf" => self.cmd_loadelf(args),
             "" => {},
             _ => {
                 println!("Unknown command: '{}'. Type 'help' for available commands.", command);
@@ -138,6 +140,9 @@ impl Shell {
         println!("  touch <file>    - Create empty file");
         println!("  rm <file>       - Remove file or directory");
         println!("  write <file> <text> - Write text to file");
+        println!();
+        println!("ELF Binaries:");
+        println!("  loadelf <file>  - Load and execute an ELF binary from filesystem");
         println!();
         println!("HAL Script:");
         println!("  run <code>      - Run HAL Script code");
@@ -1149,5 +1154,79 @@ impl Shell {
                 println!("Use 'fsformat' to format the disk");
             }
         }
+    }
+
+    // ELF loader command
+
+    fn cmd_loadelf(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: loadelf <file>");
+            println!("  Loads and executes an ELF binary from the filesystem");
+            println!();
+            println!("Example:");
+            println!("  loadelf /bin/hello    - Load and execute /bin/hello");
+            return;
+        }
+
+        let filepath = args[0];
+
+        // Read the file from VFS
+        use crate::vfs;
+
+        let vfs = vfs::VFS.lock();
+        let file_data = match vfs.read_file(filepath) {
+            Ok(data) => data,
+            Err(e) => {
+                println!("Error reading file '{}': {}", filepath, e);
+                println!("Tip: Use 'ls' to list available files");
+                return;
+            }
+        };
+        drop(vfs); // Release the lock
+
+        // Convert String to bytes
+        let elf_bytes = file_data.as_bytes();
+
+        println!("Loading ELF binary: {}", filepath);
+        println!("Size: {} bytes", elf_bytes.len());
+
+        // Create a new process
+        use crate::process;
+        use alloc::string::ToString;
+
+        let process_name = filepath.split('/').last().unwrap_or("elf_program").to_string();
+
+        let mut new_process = process::Process::new(process_name.clone(), Some(1));
+
+        // Load ELF binary into process
+        let entry_point = match new_process.load_elf(elf_bytes) {
+            Ok(entry) => entry,
+            Err(e) => {
+                println!("Error loading ELF: {}", e);
+                return;
+            }
+        };
+
+        println!("Entry point: 0x{:016x}", entry_point);
+
+        // Set up user stack
+        let stack_ptr = match new_process.setup_user_stack() {
+            Ok(sp) => sp,
+            Err(e) => {
+                println!("Error setting up stack: {}", e);
+                return;
+            }
+        };
+
+        println!("User stack: 0x{:016x}", stack_ptr);
+        println!("Memory usage: {} KB", new_process.memory_usage() / 1024);
+
+        println!();
+        println!("ELF binary loaded successfully!");
+        println!("Process: {} (PID {})", process_name, new_process.pid());
+        println!();
+        println!("NOTE: User-mode execution not yet implemented.");
+        println!("To complete this feature, integrate with the task scheduler");
+        println!("to create a task that jumps to the entry point in Ring 3.");
     }
 }

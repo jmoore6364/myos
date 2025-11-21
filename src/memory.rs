@@ -242,4 +242,65 @@ pub mod process_memory {
 
         Some(())
     }
+
+    /// Map a page in a specific page table with custom flags
+    ///
+    /// This is used by the ELF loader to map program segments
+    pub fn map_page_in_table(
+        page_table_phys: PhysAddr,
+        page: Page,
+        frame: PhysFrame,
+        flags: PageTableFlags,
+    ) -> Result<(), &'static str> {
+        let phys_offset = *PHYS_MEM_OFFSET.lock();
+        let mut frame_allocator = FRAME_ALLOCATOR.lock();
+        let frame_allocator = frame_allocator.as_mut().ok_or("Frame allocator not initialized")?;
+
+        unsafe {
+            // Create a mapper for this page table
+            let l4_virt = phys_offset + page_table_phys.as_u64();
+            let l4_table: &mut PageTable = &mut *(l4_virt.as_mut_ptr() as *mut PageTable);
+            let mut mapper = OffsetPageTable::new(l4_table, phys_offset);
+
+            // Map the page
+            mapper
+                .map_to(page, frame, flags, frame_allocator)
+                .map_err(|_| "Failed to map page")?
+                .flush();
+        }
+
+        Ok(())
+    }
+}
+
+/// Allocate a physical frame
+pub fn allocate_frame() -> Option<PhysFrame> {
+    let mut frame_allocator = FRAME_ALLOCATOR.lock();
+    frame_allocator.as_mut()?.allocate_frame()
+}
+
+/// Map a page with specific flags (in the current page table)
+///
+/// # Safety
+/// This function is unsafe because it modifies page tables
+pub unsafe fn map_page(
+    page: Page,
+    frame: PhysFrame,
+    flags: PageTableFlags,
+) -> Result<(), &'static str> {
+    let phys_offset = *PHYS_MEM_OFFSET.lock();
+    let mut frame_allocator = FRAME_ALLOCATOR.lock();
+    let frame_allocator = frame_allocator.as_mut().ok_or("Frame allocator not initialized")?;
+
+    // Get the current page table
+    let l4_table = active_level_4_table(phys_offset);
+    let mut mapper = OffsetPageTable::new(l4_table, phys_offset);
+
+    // Map the page
+    mapper
+        .map_to(page, frame, flags, frame_allocator)
+        .map_err(|_| "Failed to map page")?
+        .flush();
+
+    Ok(())
 }
