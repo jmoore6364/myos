@@ -63,10 +63,11 @@ lazy_static! {
 
         // System Call Interrupt (INT 0x80)
         // Use set_handler_addr for naked function
+        // Set DPL to 3 to allow user mode (Ring 3) to invoke this interrupt
         unsafe {
             idt[0x80].set_handler_addr(
                 x86_64::VirtAddr::new(syscall_interrupt_handler as u64)
-            );
+            ).set_privilege_level(x86_64::PrivilegeLevel::Ring3);
         }
 
         idt

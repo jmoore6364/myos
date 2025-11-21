@@ -81,6 +81,28 @@ extern "C" fn task_c() {
     syscall::exit(0);
 }
 
+/// User mode test task - runs in Ring 3
+extern "C" fn user_mode_task() -> ! {
+    use crate::syscall;
+
+    // This task runs in Ring 3 (user mode) and demonstrates syscalls
+    syscall::sys_print("🔒 USER MODE: Starting user mode task (Ring 3)\n");
+
+    for i in 0..3 {
+        let msg = alloc::format!("🔒 USER MODE: Iteration {} (time: {}s)\n", i, syscall::get_time());
+        syscall::sys_print(&msg);
+        syscall::sleep(800); // 800ms
+    }
+
+    syscall::sys_print("🔒 USER MODE: User mode task completed successfully!\n");
+    syscall::exit(0);
+
+    // Should never reach here
+    loop {
+        x86_64::instructions::hlt();
+    }
+}
+
 /// Initialize test tasks for demonstrating multitasking
 fn init_test_tasks() {
     let mut scheduler = SCHEDULER.lock();
@@ -95,6 +117,40 @@ fn init_test_tasks() {
     scheduler.add_task(task_c);
 
     println!("  Created {} tasks", scheduler.task_count());
+}
+
+/// Allocate a user mode stack
+fn allocate_user_stack(size: usize) -> x86_64::VirtAddr {
+    use alloc::alloc::{alloc, Layout};
+
+    unsafe {
+        let layout = Layout::from_size_align(size, 16).expect("Invalid layout");
+        let ptr = alloc(layout);
+        if ptr.is_null() {
+            panic!("Failed to allocate user stack");
+        }
+
+        // Return the top of the stack (stacks grow downward)
+        x86_64::VirtAddr::from_ptr(ptr) + size
+    }
+}
+
+/// Initialize and switch to user mode task (Ring 3 demonstration)
+fn test_user_mode() {
+    println!("\n[TEST] Switching to user mode (Ring 3)...");
+    println!("[TEST] This demonstrates kernel/user privilege separation");
+
+    // Allocate a stack for user mode
+    const USER_STACK_SIZE: usize = 4096 * 4; // 16KB
+    let user_stack = allocate_user_stack(USER_STACK_SIZE);
+
+    println!("[TEST] User stack allocated at: {:#x}", user_stack.as_u64());
+    println!("[TEST] Jumping to Ring 3...\n");
+
+    // Switch to user mode - this never returns
+    unsafe {
+        gdt::switch_to_usermode(user_mode_task, user_stack);
+    }
 }
 
 /// Entry point for the kernel

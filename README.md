@@ -12,6 +12,7 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 - **Keyboard Input**: Real-time PS/2 keyboard driver with full character support
 - **CPU Context Switching**: Full register save/restore for true multitasking
 - **Task Scheduler**: Preemptive round-robin task scheduling with 10ms time slices
+- **Ring 0/3 Protection**: Full kernel/user mode separation with privilege level enforcement
 - **System Calls**: INT 0x80 syscall interface with 32 syscalls (exit, yield, print, get_time, get_ticks, sleep, getpid, getppid, fork, wait, kill, exec, signal, sigmask, pipe, read, write, close, shmget, shmat, shmdt, shmctl, seminit, semopen, semwait, sempost, semgetvalue, semdestroy, msgget, msgsnd, msgrcv, msgctl)
 - **Process Management**: Process control blocks, process table, lifecycle management, parent-child relationships
 - **Signal Handling**: Unix-like signals (20 signal types), signal masks, custom handlers, signal delivery
@@ -44,13 +45,17 @@ MyOS
 ├── Bootloader (bootloader crate)
 ├── Kernel Core
 │   ├── GDT (Global Descriptor Table)
+│   │   ├── Kernel Code/Data Segments (Ring 0)
+│   │   ├── User Code/Data Segments (Ring 3)
+│   │   └── TSS with Privilege Stack Table
 │   ├── IDT (Interrupt Descriptor Table)
+│   ├── Ring 0/3 Protection (Kernel/User Mode Separation)
 │   ├── Memory Management (Paging + Heap)
 │   ├── VGA Buffer Driver
 │   ├── Keyboard Driver
 │   ├── PIT Driver (Programmable Interval Timer)
 │   ├── Context Switching (CPU state save/restore)
-│   └── System Calls (INT 0x80 interface - 32 syscalls)
+│   └── System Calls (INT 0x80 interface - 32 syscalls, Ring 3 accessible)
 ├── Process Management
 │   ├── Process Control Blocks (PCB)
 │   ├── Process Table & Lifecycle
@@ -99,8 +104,11 @@ MyOS
 │   ├── Virtual File System (VFS)
 │   ├── Directory Tree (/home, /scripts, /tmp)
 │   └── Unix-like Commands
+├── Security & Protection
+│   ├── ✅ User/Kernel Mode Separation (Ring 0/3)
+│   ├── ✅ Privilege Level Enforcement
+│   └── ✅ Syscall Gate for Safe Kernel Entry
 ├── Planned Features
-│   ├── User/Kernel Mode Separation (Ring 0/3)
 │   ├── Memory Isolation (per-process page tables)
 │   ├── Disk Drivers (ATA/AHCI)
 │   └── Network Stack
@@ -323,10 +331,11 @@ qemu-system-x86_64 \
 - [x] Persistent REPL
 - [x] AI natural language programming
 
-### Phase 2: Process Management (Next)
-- [ ] Task scheduler
-- [ ] Multitasking
-- [ ] Process isolation
+### Phase 2: Process Management ✅
+- [x] Task scheduler
+- [x] Multitasking
+- [x] User/Kernel mode separation (Ring 0/3)
+- [ ] Process isolation (per-process page tables)
 
 ### Phase 3: Storage & I/O
 - [ ] Virtual File System
