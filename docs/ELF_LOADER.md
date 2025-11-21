@@ -136,18 +136,47 @@ Memory usage: 8196 KB
 ELF binary loaded successfully!
 Process: hello (PID 2)
 
-NOTE: User-mode execution not yet implemented.
-To complete this feature, integrate with the task scheduler
-to create a task that jumps to the entry point in Ring 3.
+Jumping to user mode...
+
+[User program executes here - output depends on program]
+Hello from ELF!
+[Process exits via syscall]
 ```
 
-## Current Limitations
+The program transitions to Ring 3 and begins executing at the entry point!
 
-### Not Yet Implemented
-1. **User-mode execution** - ELF is loaded but not executed
-   - Need to create a task that jumps to entry point in Ring 3
-   - Need to set up proper interrupt return frame (IRETQ)
-   - Need to switch to user page table and set RSP to user stack
+## User-Mode Execution
+
+### Implemented (NEW!)
+The OS now **fully supports user-mode execution** of ELF binaries!
+
+1. **IRETQ frame setup** - Proper transition from Ring 0 to Ring 3
+2. **Page table switching** - Each process runs in its own isolated address space
+3. **Segment descriptor setup** - User code/data segments (Ring 3)
+4. **Syscall interface** - User programs can call kernel via INT 0x80
+
+### How It Works
+
+1. **Load ELF binary** - Parse and map into process page table
+2. **Setup user stack** - 8 MB stack in user space
+3. **Switch page tables** - Load process-specific CR3
+4. **Set up IRETQ frame** - Push RIP, CS, RFLAGS, RSP, SS
+5. **Execute IRETQ** - CPU transitions to Ring 3 automatically
+6. **Program runs** - User code executes in isolated environment
+7. **Syscalls** - INT 0x80 traps back to kernel
+
+### Code: `src/usermode.rs`
+```rust
+pub unsafe fn jump_to_usermode(
+    entry_point: VirtAddr,
+    user_stack: VirtAddr,
+    page_table_phys: Option<PhysAddr>,
+) -> !
+```
+
+This function performs the actual privilege level transition using the IRETQ instruction.
+
+## Current Limitations
 
 2. **Dynamic linking** - Only static binaries supported
    - No ELF interpreter
@@ -241,8 +270,10 @@ to create a task that jumps to the entry point in Ring 3.
 
 ## Code Locations
 
-- **ELF parser**: `src/elf.rs`
+- **ELF parser**: `src/elf.rs` (264 lines)
+- **User-mode execution**: `src/usermode.rs` (169 lines) - NEW!
 - **Process integration**: `src/process.rs` (lines 249-312)
 - **Memory helpers**: `src/memory.rs` (lines 246-306)
-- **Shell command**: `src/shell.rs` (lines 1161-1231)
+- **GDT Ring 3 segments**: `src/gdt.rs` (lines 57-77, 89-138)
+- **Shell command**: `src/shell.rs` (lines 1161-1250)
 - **Test programs**: `test_programs/`

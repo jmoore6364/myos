@@ -62,6 +62,10 @@ pub struct Selectors {
     pub user_data_selector: SegmentSelector,
 }
 
+// Export user segment selectors as constants for easy access
+pub const USER_CODE_SELECTOR: SegmentSelector = SegmentSelector::new(4, x86_64::PrivilegeLevel::Ring3);
+pub const USER_DATA_SELECTOR: SegmentSelector = SegmentSelector::new(5, x86_64::PrivilegeLevel::Ring3);
+
 impl Selectors {
     pub fn get_user_code_selector() -> SegmentSelector {
         GDT.1.user_code_selector

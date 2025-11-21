@@ -31,6 +31,7 @@ mod msgq;
 mod ata;
 mod simplefs;
 mod elf;
+mod usermode;
 
 lazy_static! {
     pub static ref SHELL: Mutex<shell::Shell> = Mutex::new(shell::Shell::new());

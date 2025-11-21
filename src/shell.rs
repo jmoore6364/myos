@@ -1225,8 +1225,27 @@ impl Shell {
         println!("ELF binary loaded successfully!");
         println!("Process: {} (PID {})", process_name, new_process.pid());
         println!();
-        println!("NOTE: User-mode execution not yet implemented.");
-        println!("To complete this feature, integrate with the task scheduler");
-        println!("to create a task that jumps to the entry point in Ring 3.");
+
+        // Get the page table for this process
+        let page_table_phys = new_process.page_table_phys();
+
+        println!("Jumping to user mode...");
+        println!();
+
+        // Execute the user program
+        // This will transition from Ring 0 (kernel) to Ring 3 (user)
+        use crate::usermode;
+        use x86_64::VirtAddr;
+
+        unsafe {
+            usermode::execute_user_program(
+                VirtAddr::new(entry_point),
+                VirtAddr::new(stack_ptr),
+                page_table_phys,
+            );
+        }
+
+        // Note: execute_user_program() never returns - it jumps to Ring 3
+        // The program will execute and eventually exit via syscall
     }
 }
