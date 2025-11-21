@@ -14,13 +14,14 @@ A revolutionary operating system written in Rust that boots on bare metal x86_64
 - **Task Scheduler**: Preemptive round-robin task scheduling with 10ms time slices
 - **Ring 0/3 Protection**: Full kernel/user mode separation with privilege level enforcement
 - **Memory Isolation**: Per-process page tables with separate user/kernel address spaces
+- **Disk I/O**: ATA/IDE disk driver with PIO mode, LBA28 addressing, and sector read/write
 - **System Calls**: INT 0x80 syscall interface with 32 syscalls (exit, yield, print, get_time, get_ticks, sleep, getpid, getppid, fork, wait, kill, exec, signal, sigmask, pipe, read, write, close, shmget, shmat, shmdt, shmctl, seminit, semopen, semwait, sempost, semgetvalue, semdestroy, msgget, msgsnd, msgrcv, msgctl)
 - **Process Management**: Process control blocks, process table, lifecycle management, parent-child relationships
 - **Signal Handling**: Unix-like signals (20 signal types), signal masks, custom handlers, signal delivery
 - **IPC Mechanisms**: Unix-like pipes (4KB circular buffers), signals (20 types), shared memory (System V-style), semaphores (POSIX-style), message queues (System V-style)
 
 ### User Environment
-- **Interactive Shell**: 39+ commands for system control
+- **Interactive Shell**: 42+ commands for system control
 - **Virtual File System**: In-memory VFS with Unix-like commands (ls, cd, cat, mkdir, touch, rm, write, exec)
 - **HAL Script Language**: Turing-complete language with 32 built-ins and module system (see [HALSCRIPT.md](HALSCRIPT.md))
 - **Persistent REPL**: Variables and functions survive across commands
@@ -60,6 +61,11 @@ MyOS
 │   ├── VGA Buffer Driver
 │   ├── Keyboard Driver
 │   ├── PIT Driver (Programmable Interval Timer)
+│   ├── ATA/IDE Disk Driver
+│   │   ├── PIO Mode Read/Write
+│   │   ├── LBA28 Addressing (up to 128 GB)
+│   │   ├── Drive Detection & Identification
+│   │   └── Sector-Level I/O (512 bytes)
 │   ├── Context Switching (CPU state save/restore)
 │   └── System Calls (INT 0x80 interface - 32 syscalls, Ring 3 accessible)
 ├── Process Management
@@ -102,10 +108,14 @@ MyOS
 │   ├── Manual Context Switch API
 │   └── Syscall API (32 total syscalls)
 ├── Shell & Scripting
-│   ├── Interactive Shell (43+ commands)
+│   ├── Interactive Shell (42+ commands)
 │   ├── HAL Script Language (full Turing-complete)
 │   ├── Persistent REPL
 │   └── AI Natural Language Processor
+├── Storage
+│   ├── ATA/IDE Disk Driver
+│   ├── Sector Read/Write Operations
+│   └── Disk Information Commands
 ├── File System
 │   ├── Virtual File System (VFS)
 │   ├── Directory Tree (/home, /scripts, /tmp)
@@ -118,7 +128,8 @@ MyOS
 │   └── ✅ Memory Isolation (User/Kernel Address Space Separation)
 ├── Planned Features
 │   ├── Complete Task-Process Integration (CR3 switching in scheduler)
-│   ├── Disk Drivers (ATA/AHCI)
+│   ├── AHCI Driver (advanced disk interface)
+│   ├── Filesystem (FAT32/ext2)
 │   └── Network Stack
 ```
 
@@ -238,6 +249,12 @@ Once the OS boots, try these commands:
 > sched
 > kill 0
 
+# Disk I/O
+> diskinfo
+> diskread 0
+> diskwrite 100 "Hello from MyOS!"
+> diskread 100
+
 # System commands
 > help
 > about
@@ -346,9 +363,9 @@ qemu-system-x86_64 \
 - [x] Memory isolation (per-process page tables)
 
 ### Phase 3: Storage & I/O
-- [ ] Virtual File System
-- [ ] ATA/AHCI disk driver
-- [ ] Basic filesystem (FAT32 or custom)
+- [x] ATA/IDE disk driver (PIO mode)
+- [ ] AHCI driver (DMA mode)
+- [ ] Basic filesystem (FAT32 or ext2)
 
 ### Phase 4: User Interface
 - [ ] Command shell

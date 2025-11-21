@@ -98,6 +98,10 @@ impl Shell {
             "switch" => self.cmd_switch(args),
             // Process commands
             "proc" => self.cmd_proc(args),
+            // Disk commands
+            "diskinfo" => self.cmd_diskinfo(args),
+            "diskread" => self.cmd_diskread(args),
+            "diskwrite" => self.cmd_diskwrite(args),
             "" => {},
             _ => {
                 println!("Unknown command: '{}'. Type 'help' for available commands.", command);
@@ -155,6 +159,11 @@ impl Shell {
         println!("  proc            - List all processes");
         println!("  proc info <pid> - Show detailed process info");
         println!("  proc create <name> - Create a new process");
+        println!();
+        println!("Disk I/O:");
+        println!("  diskinfo        - Show disk information");
+        println!("  diskread <sector> - Read and display a disk sector");
+        println!("  diskwrite <sector> <data> - Write data to a disk sector");
         println!();
         println!("Other:");
         println!("  echo <text>     - Print text to the screen");
@@ -971,6 +980,120 @@ impl Shell {
             _ => {
                 println!("Unknown proc subcommand: {}", args[0]);
                 println!("Available: list (default), tree, info <pid>, create <name>");
+            }
+        }
+    }
+
+    // Disk commands
+
+    fn cmd_diskinfo(&self, _args: &[&str]) {
+        use crate::ata;
+
+        match ata::disk_info() {
+            Some((sectors, size_mb)) => {
+                println!("Disk Information:");
+                println!("  Sectors: {}", sectors);
+                println!("  Size: {} MB ({} GB)", size_mb, size_mb / 1024);
+                println!("  Sector size: 512 bytes");
+            }
+            None => {
+                println!("No disk detected");
+            }
+        }
+    }
+
+    fn cmd_diskread(&self, args: &[&str]) {
+        use crate::ata;
+
+        if args.is_empty() {
+            println!("Usage: diskread <sector>");
+            println!("  Reads and displays a 512-byte sector from disk");
+            return;
+        }
+
+        let sector = match args[0].parse::<u32>() {
+            Ok(s) => s,
+            Err(_) => {
+                println!("Invalid sector number");
+                return;
+            }
+        };
+
+        let mut buffer = [0u8; 512];
+        match ata::read_sector(sector, &mut buffer) {
+            Ok(_) => {
+                println!("Sector {} contents:", sector);
+                println!();
+
+                // Display as hex dump (16 bytes per line)
+                for (i, chunk) in buffer.chunks(16).enumerate() {
+                    print!("{:04x}: ", i * 16);
+
+                    // Hex view
+                    for byte in chunk {
+                        print!("{:02x} ", byte);
+                    }
+
+                    // Padding for incomplete lines
+                    for _ in 0..(16 - chunk.len()) {
+                        print!("   ");
+                    }
+
+                    print!(" | ");
+
+                    // ASCII view
+                    for byte in chunk {
+                        let ch = if *byte >= 32 && *byte <= 126 {
+                            *byte as char
+                        } else {
+                            '.'
+                        };
+                        print!("{}", ch);
+                    }
+
+                    println!();
+                }
+            }
+            Err(_) => {
+                println!("Error reading sector {}", sector);
+            }
+        }
+    }
+
+    fn cmd_diskwrite(&self, args: &[&str]) {
+        use crate::ata;
+        use alloc::string::String;
+
+        if args.len() < 2 {
+            println!("Usage: diskwrite <sector> <data>");
+            println!("  Writes data to a 512-byte sector on disk");
+            println!("  WARNING: This will overwrite existing data!");
+            return;
+        }
+
+        let sector = match args[0].parse::<u32>() {
+            Ok(s) => s,
+            Err(_) => {
+                println!("Invalid sector number");
+                return;
+            }
+        };
+
+        // Join remaining args as data string
+        let data_str = args[1..].join(" ");
+
+        // Create buffer and fill with data (pad with zeros if needed)
+        let mut buffer = [0u8; 512];
+        let data_bytes = data_str.as_bytes();
+        let copy_len = core::cmp::min(data_bytes.len(), 512);
+        buffer[..copy_len].copy_from_slice(&data_bytes[..copy_len]);
+
+        match ata::write_sector(sector, &buffer) {
+            Ok(_) => {
+                println!("Successfully wrote {} bytes to sector {}", copy_len, sector);
+            }
+            Err(_) => {
+                println!("Error writing to sector {}", sector);
             }
         }
     }
