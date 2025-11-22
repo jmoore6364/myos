@@ -647,6 +647,151 @@ impl SimpleFS {
 
         Ok(files)
     }
+
+    /// Free a data block
+    fn free_block(&mut self, block_num: u32) -> Result<(), &'static str> {
+        let bitmap_sector = block_num / (SECTOR_SIZE as u32 * 8);
+        let byte_offset = (block_num / 8) as usize % SECTOR_SIZE;
+        let bit_offset = (block_num % 8) as usize;
+
+        let mut bitmap = [0u8; SECTOR_SIZE];
+        crate::ata::read_sector(DATA_BITMAP_START + bitmap_sector, &mut bitmap)
+            .map_err(|_| "Failed to read data bitmap")?;
+
+        bitmap[byte_offset] &= !(1 << bit_offset);
+
+        crate::ata::write_sector(DATA_BITMAP_START + bitmap_sector, &bitmap)
+            .map_err(|_| "Failed to write data bitmap")?;
+
+        self.superblock.free_blocks += 1;
+        Ok(())
+    }
+
+    /// Write to an existing file (replaces content)
+    pub fn write_file(&mut self, filename: &str, data: &[u8]) -> Result<(), &'static str> {
+        if !self.mounted {
+            return Err("Filesystem not mounted");
+        }
+
+        // Find the file
+        let inode_num = self.find_file(filename)?;
+        let mut inode = self.read_inode(inode_num)?;
+
+        if inode.inode_type != InodeType::File as u8 {
+            return Err("Not a file");
+        }
+
+        // Free old data blocks
+        for &block_num in &inode.direct_blocks {
+            if block_num != 0 {
+                self.free_block(block_num)?;
+            }
+        }
+        inode.direct_blocks = [0; DIRECT_BLOCKS];
+
+        // Write new data
+        inode.size = data.len() as u32;
+        inode.modified = crate::time::uptime_ms();
+
+        let mut remaining = data.len();
+        let mut offset = 0;
+        let mut block_idx = 0;
+
+        while remaining > 0 && block_idx < DIRECT_BLOCKS {
+            let block_num = self.allocate_block()?;
+            inode.direct_blocks[block_idx] = block_num;
+
+            let to_write = core::cmp::min(remaining, SECTOR_SIZE);
+            let mut buffer = [0u8; SECTOR_SIZE];
+            buffer[..to_write].copy_from_slice(&data[offset..offset + to_write]);
+
+            crate::ata::write_sector(DATA_BLOCKS_START + block_num, &buffer)
+                .map_err(|_| "Failed to write data block")?;
+
+            remaining -= to_write;
+            offset += to_write;
+            block_idx += 1;
+        }
+
+        if remaining > 0 {
+            return Err("File too large");
+        }
+
+        // Update the inode
+        self.write_inode(inode_num, &inode)?;
+
+        // Update superblock
+        let sb_bytes = self.superblock.to_bytes();
+        crate::ata::write_sector(SUPERBLOCK_SECTOR, &sb_bytes)
+            .map_err(|_| "Failed to update superblock")?;
+
+        Ok(())
+    }
+
+    /// Delete a file from root directory
+    pub fn delete_file(&mut self, filename: &str) -> Result<(), &'static str> {
+        if !self.mounted {
+            return Err("Filesystem not mounted");
+        }
+
+        // Find the file
+        let inode_num = self.find_file(filename)?;
+        let inode = self.read_inode(inode_num)?;
+
+        // Free data blocks
+        for &block_num in &inode.direct_blocks {
+            if block_num != 0 {
+                self.free_block(block_num)?;
+            }
+        }
+
+        // Free the inode
+        self.free_inode(inode_num)?;
+
+        // Mark inode as free on disk
+        let free_inode = Inode::new(InodeType::Free, "");
+        self.write_inode(inode_num, &free_inode)?;
+
+        // Remove from directory
+        let root_inode = self.read_inode(0)?;
+        for &block_num in &root_inode.direct_blocks {
+            if block_num == 0 {
+                break;
+            }
+
+            let mut buffer = [0u8; SECTOR_SIZE];
+            crate::ata::read_sector(DATA_BLOCKS_START + block_num, &mut buffer)
+                .map_err(|_| "Failed to read directory block")?;
+
+            let mut found = false;
+            for i in 0..(SECTOR_SIZE / 32) {
+                let entry = DirEntry::from_bytes(&buffer[i * 32..(i + 1) * 32]);
+                if entry.inode == inode_num {
+                    // Clear this entry
+                    let empty_entry = DirEntry::new(0, "");
+                    let entry_bytes = empty_entry.to_bytes();
+                    buffer[i * 32..(i + 1) * 32].copy_from_slice(&entry_bytes);
+
+                    crate::ata::write_sector(DATA_BLOCKS_START + block_num, &buffer)
+                        .map_err(|_| "Failed to write directory block")?;
+
+                    found = true;
+                    break;
+                }
+            }
+
+            if found {
+                break;
+            }
+        }
+
+        // Update superblock
+        let sb_bytes = self.superblock.to_bytes();
+        crate::ata::write_sector(SUPERBLOCK_SECTOR, &sb_bytes)
+            .map_err(|_| "Failed to update superblock")?;
+
+        Ok(())
+    }
 }
 
 /// Initialize the filesystem
@@ -701,4 +846,16 @@ pub fn read_file(filename: &str) -> Result<Vec<u8>, &'static str> {
 pub fn list_files() -> Result<Vec<(String, u32)>, &'static str> {
     let fs = SIMPLEFS.lock();
     fs.list_files()
+}
+
+/// Write to an existing file
+pub fn write_file(filename: &str, data: &[u8]) -> Result<(), &'static str> {
+    let mut fs = SIMPLEFS.lock();
+    fs.write_file(filename, data)
+}
+
+/// Delete a file
+pub fn delete_file(filename: &str) -> Result<(), &'static str> {
+    let mut fs = SIMPLEFS.lock();
+    fs.delete_file(filename)
 }

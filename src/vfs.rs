@@ -241,6 +241,13 @@ impl VirtualFileSystem {
     pub fn write_file(&mut self, path: &str, content: String) -> Result<(), String> {
         let full_path = self.normalize_path(path);
 
+        // Check if path is on SimpleFS mount (/disk/*)
+        if full_path.starts_with("/disk/") {
+            let filename = &full_path[6..]; // Strip "/disk/"
+            return crate::simplefs::write_file(filename, content.as_bytes())
+                .map_err(|e| format!("SimpleFS error: {}", e));
+        }
+
         match self.root.get_mut(&full_path) {
             Some(node) => match node.file_type {
                 FileType::File => {
@@ -263,6 +270,13 @@ impl VirtualFileSystem {
 
         if full_path == "/" {
             return Err(String::from("Cannot delete root directory"));
+        }
+
+        // Check if path is on SimpleFS mount (/disk/*)
+        if full_path.starts_with("/disk/") {
+            let filename = &full_path[6..]; // Strip "/disk/"
+            return crate::simplefs::delete_file(filename)
+                .map_err(|e| format!("SimpleFS error: {}", e));
         }
 
         // Check if it's a directory with contents
