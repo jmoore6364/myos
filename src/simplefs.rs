@@ -465,20 +465,193 @@ impl SimpleFS {
         Err("File not found")
     }
 
-    /// Create a new file in the root directory
-    pub fn create_file(&mut self, filename: &str, data: &[u8]) -> Result<(), &'static str> {
+    /// Parse a path into components
+    fn parse_path(path: &str) -> Vec<&str> {
+        path.split('/')
+            .filter(|s| !s.is_empty())
+            .collect()
+    }
+
+    /// Resolve a path to an inode number
+    fn resolve_path(&self, path: &str) -> Result<u32, &'static str> {
+        if path == "/" || path.is_empty() {
+            return Ok(0); // Root directory
+        }
+
+        let components = Self::parse_path(path);
+        let mut current_inode_num = 0; // Start at root
+
+        for component in components {
+            let current_inode = self.read_inode(current_inode_num)?;
+
+            if current_inode.inode_type != InodeType::Directory as u8 {
+                return Err("Not a directory");
+            }
+
+            // Search this directory for the component
+            let mut found = false;
+            for &block_num in &current_inode.direct_blocks {
+                if block_num == 0 {
+                    break;
+                }
+
+                let mut buffer = [0u8; SECTOR_SIZE];
+                crate::ata::read_sector(DATA_BLOCKS_START + block_num, &mut buffer)
+                    .map_err(|_| "Failed to read directory block")?;
+
+                for i in 0..(SECTOR_SIZE / 32) {
+                    let entry = DirEntry::from_bytes(&buffer[i * 32..(i + 1) * 32]);
+                    if entry.inode != 0 && entry.get_name() == component {
+                        current_inode_num = entry.inode;
+                        found = true;
+                        break;
+                    }
+                }
+
+                if found {
+                    break;
+                }
+            }
+
+            if !found {
+                return Err("Path not found");
+            }
+        }
+
+        Ok(current_inode_num)
+    }
+
+    /// Add a directory entry to a directory inode
+    fn add_dir_entry(&mut self, dir_inode_num: u32, entry_inode_num: u32, name: &str) -> Result<(), &'static str> {
+        let mut dir_inode = self.read_inode(dir_inode_num)?;
+
+        // Find free slot in existing directory blocks
+        for &block_num in &dir_inode.direct_blocks {
+            if block_num == 0 {
+                break;
+            }
+
+            let mut buffer = [0u8; SECTOR_SIZE];
+            crate::ata::read_sector(DATA_BLOCKS_START + block_num, &mut buffer)
+                .map_err(|_| "Failed to read directory block")?;
+
+            for i in 0..(SECTOR_SIZE / 32) {
+                let entry = DirEntry::from_bytes(&buffer[i * 32..(i + 1) * 32]);
+                if entry.inode == 0 {
+                    let new_entry = DirEntry::new(entry_inode_num, name);
+                    let entry_bytes = new_entry.to_bytes();
+                    buffer[i * 32..(i + 1) * 32].copy_from_slice(&entry_bytes);
+
+                    crate::ata::write_sector(DATA_BLOCKS_START + block_num, &buffer)
+                        .map_err(|_| "Failed to write directory block")?;
+
+                    return Ok(());
+                }
+            }
+        }
+
+        // Allocate new directory block
+        for i in 0..DIRECT_BLOCKS {
+            if dir_inode.direct_blocks[i] == 0 {
+                let block_num = self.allocate_block()?;
+                dir_inode.direct_blocks[i] = block_num;
+
+                let mut buffer = [0u8; SECTOR_SIZE];
+                let new_entry = DirEntry::new(entry_inode_num, name);
+                let entry_bytes = new_entry.to_bytes();
+                buffer[0..32].copy_from_slice(&entry_bytes);
+
+                crate::ata::write_sector(DATA_BLOCKS_START + block_num, &buffer)
+                    .map_err(|_| "Failed to write directory block")?;
+
+                self.write_inode(dir_inode_num, &dir_inode)?;
+                return Ok(());
+            }
+        }
+
+        Err("Directory full")
+    }
+
+    /// Create a directory
+    pub fn create_directory(&mut self, path: &str) -> Result<(), &'static str> {
         if !self.mounted {
             return Err("Filesystem not mounted");
         }
 
+        if path == "/" {
+            return Err("Root directory already exists");
+        }
+
+        let components = Self::parse_path(path);
+        if components.is_empty() {
+            return Err("Invalid path");
+        }
+
+        let dirname = components[components.len() - 1];
+        if dirname.len() > MAX_FILENAME {
+            return Err("Directory name too long");
+        }
+
+        // Find parent directory
+        let parent_path = if components.len() == 1 {
+            "/"
+        } else {
+            // Reconstruct parent path
+            let parent_components = &components[..components.len() - 1];
+            &path[..path.len() - dirname.len() - 1]
+        };
+
+        let parent_inode_num = self.resolve_path(parent_path)?;
+
+        // Check if directory already exists
+        if self.resolve_path(path).is_ok() {
+            return Err("Directory already exists");
+        }
+
+        // Allocate inode for new directory
+        let inode_num = self.allocate_inode()?;
+        let inode = Inode::new(InodeType::Directory, dirname);
+        self.write_inode(inode_num, &inode)?;
+
+        // Add entry to parent directory
+        self.add_dir_entry(parent_inode_num, inode_num, dirname)?;
+
+        // Update superblock
+        let sb_bytes = self.superblock.to_bytes();
+        crate::ata::write_sector(SUPERBLOCK_SECTOR, &sb_bytes)
+            .map_err(|_| "Failed to update superblock")?;
+
+        Ok(())
+    }
+
+    /// Create a new file (supports full paths)
+    pub fn create_file(&mut self, path: &str, data: &[u8]) -> Result<(), &'static str> {
+        if !self.mounted {
+            return Err("Filesystem not mounted");
+        }
+
+        let components = Self::parse_path(path);
+        if components.is_empty() {
+            return Err("Invalid path");
+        }
+
+        let filename = components[components.len() - 1];
         if filename.len() > MAX_FILENAME {
             return Err("Filename too long");
         }
 
         // Check if file already exists
-        if self.find_file(filename).is_ok() {
+        if self.resolve_path(path).is_ok() {
             return Err("File already exists");
         }
+
+        // Find parent directory
+        let parent_inode_num = if components.len() == 1 {
+            0 // Root directory
+        } else {
+            let parent_path = &path[..path.len() - filename.len() - 1];
+            self.resolve_path(parent_path)?
+        };
 
         // Allocate inode for the file
         let inode_num = self.allocate_inode()?;
@@ -516,66 +689,8 @@ impl SimpleFS {
         // Write the inode
         self.write_inode(inode_num, &inode)?;
 
-        // Add entry to root directory
-        let mut root_inode = self.read_inode(0)?;
-
-        // Find free slot in existing directory blocks or allocate new one
-        let mut entry_written = false;
-        for &block_num in &root_inode.direct_blocks {
-            if block_num == 0 {
-                break;
-            }
-
-            let mut buffer = [0u8; SECTOR_SIZE];
-            crate::ata::read_sector(DATA_BLOCKS_START + block_num, &mut buffer)
-                .map_err(|_| "Failed to read directory block")?;
-
-            // Find free slot
-            for i in 0..(SECTOR_SIZE / 32) {
-                let entry = DirEntry::from_bytes(&buffer[i * 32..(i + 1) * 32]);
-                if entry.inode == 0 {
-                    let new_entry = DirEntry::new(inode_num, filename);
-                    let entry_bytes = new_entry.to_bytes();
-                    buffer[i * 32..(i + 1) * 32].copy_from_slice(&entry_bytes);
-
-                    crate::ata::write_sector(DATA_BLOCKS_START + block_num, &buffer)
-                        .map_err(|_| "Failed to write directory block")?;
-
-                    entry_written = true;
-                    break;
-                }
-            }
-
-            if entry_written {
-                break;
-            }
-        }
-
-        // If no free slot found, allocate new directory block
-        if !entry_written {
-            for i in 0..DIRECT_BLOCKS {
-                if root_inode.direct_blocks[i] == 0 {
-                    let block_num = self.allocate_block()?;
-                    root_inode.direct_blocks[i] = block_num;
-
-                    let mut buffer = [0u8; SECTOR_SIZE];
-                    let new_entry = DirEntry::new(inode_num, filename);
-                    let entry_bytes = new_entry.to_bytes();
-                    buffer[0..32].copy_from_slice(&entry_bytes);
-
-                    crate::ata::write_sector(DATA_BLOCKS_START + block_num, &buffer)
-                        .map_err(|_| "Failed to write directory block")?;
-
-                    self.write_inode(0, &root_inode)?;
-                    entry_written = true;
-                    break;
-                }
-            }
-        }
-
-        if !entry_written {
-            return Err("Directory full");
-        }
+        // Add entry to parent directory
+        self.add_dir_entry(parent_inode_num, inode_num, filename)?;
 
         // Update superblock
         let sb_bytes = self.superblock.to_bytes();
@@ -585,13 +700,13 @@ impl SimpleFS {
         Ok(())
     }
 
-    /// Read a file from the root directory
-    pub fn read_file(&self, filename: &str) -> Result<Vec<u8>, &'static str> {
+    /// Read a file (supports full paths)
+    pub fn read_file(&self, path: &str) -> Result<Vec<u8>, &'static str> {
         if !self.mounted {
             return Err("Filesystem not mounted");
         }
 
-        let inode_num = self.find_file(filename)?;
+        let inode_num = self.resolve_path(path)?;
         let inode = self.read_inode(inode_num)?;
 
         if inode.inode_type != InodeType::File as u8 {
@@ -618,16 +733,29 @@ impl SimpleFS {
         Ok(data)
     }
 
-    /// List files in root directory
+    /// List files in root directory (for backwards compatibility)
     pub fn list_files(&self) -> Result<Vec<(String, u32)>, &'static str> {
+        let entries = self.list_directory("/")?;
+        Ok(entries.into_iter().map(|(name, size, _)| (name, size)).collect())
+    }
+
+    /// List contents of a directory (supports full paths)
+    /// Returns Vec of (name, size, is_directory)
+    pub fn list_directory(&self, path: &str) -> Result<Vec<(String, u32, bool)>, &'static str> {
         if !self.mounted {
             return Err("Filesystem not mounted");
         }
 
-        let root_inode = self.read_inode(0)?;
-        let mut files = Vec::new();
+        let dir_inode_num = self.resolve_path(path)?;
+        let dir_inode = self.read_inode(dir_inode_num)?;
 
-        for &block_num in &root_inode.direct_blocks {
+        if dir_inode.inode_type != InodeType::Directory as u8 {
+            return Err("Not a directory");
+        }
+
+        let mut entries = Vec::new();
+
+        for &block_num in &dir_inode.direct_blocks {
             if block_num == 0 {
                 break;
             }
@@ -640,12 +768,13 @@ impl SimpleFS {
                 let entry = DirEntry::from_bytes(&buffer[i * 32..(i + 1) * 32]);
                 if entry.inode != 0 {
                     let inode = self.read_inode(entry.inode)?;
-                    files.push((entry.get_name(), inode.size));
+                    let is_dir = inode.inode_type == InodeType::Directory as u8;
+                    entries.push((entry.get_name(), inode.size, is_dir));
                 }
             }
         }
 
-        Ok(files)
+        Ok(entries)
     }
 
     /// Free a data block
@@ -667,14 +796,14 @@ impl SimpleFS {
         Ok(())
     }
 
-    /// Write to an existing file (replaces content)
-    pub fn write_file(&mut self, filename: &str, data: &[u8]) -> Result<(), &'static str> {
+    /// Write to an existing file (replaces content, supports full paths)
+    pub fn write_file(&mut self, path: &str, data: &[u8]) -> Result<(), &'static str> {
         if !self.mounted {
             return Err("Filesystem not mounted");
         }
 
         // Find the file
-        let inode_num = self.find_file(filename)?;
+        let inode_num = self.resolve_path(path)?;
         let mut inode = self.read_inode(inode_num)?;
 
         if inode.inode_type != InodeType::File as u8 {
@@ -728,15 +857,39 @@ impl SimpleFS {
         Ok(())
     }
 
-    /// Delete a file from root directory
-    pub fn delete_file(&mut self, filename: &str) -> Result<(), &'static str> {
+    /// Delete a file or empty directory (supports full paths)
+    pub fn delete_file(&mut self, path: &str) -> Result<(), &'static str> {
         if !self.mounted {
             return Err("Filesystem not mounted");
         }
 
-        // Find the file
-        let inode_num = self.find_file(filename)?;
+        if path == "/" {
+            return Err("Cannot delete root directory");
+        }
+
+        // Find the file/directory
+        let inode_num = self.resolve_path(path)?;
         let inode = self.read_inode(inode_num)?;
+
+        // If it's a directory, make sure it's empty
+        if inode.inode_type == InodeType::Directory as u8 {
+            for &block_num in &inode.direct_blocks {
+                if block_num == 0 {
+                    break;
+                }
+
+                let mut buffer = [0u8; SECTOR_SIZE];
+                crate::ata::read_sector(DATA_BLOCKS_START + block_num, &mut buffer)
+                    .map_err(|_| "Failed to read directory block")?;
+
+                for i in 0..(SECTOR_SIZE / 32) {
+                    let entry = DirEntry::from_bytes(&buffer[i * 32..(i + 1) * 32]);
+                    if entry.inode != 0 {
+                        return Err("Directory not empty");
+                    }
+                }
+            }
+        }
 
         // Free data blocks
         for &block_num in &inode.direct_blocks {
@@ -752,9 +905,18 @@ impl SimpleFS {
         let free_inode = Inode::new(InodeType::Free, "");
         self.write_inode(inode_num, &free_inode)?;
 
-        // Remove from directory
-        let root_inode = self.read_inode(0)?;
-        for &block_num in &root_inode.direct_blocks {
+        // Remove from parent directory
+        let components = Self::parse_path(path);
+        let parent_inode_num = if components.len() == 1 {
+            0 // Root directory
+        } else {
+            let filename = components[components.len() - 1];
+            let parent_path = &path[..path.len() - filename.len() - 1];
+            self.resolve_path(parent_path)?
+        };
+
+        let parent_inode = self.read_inode(parent_inode_num)?;
+        for &block_num in &parent_inode.direct_blocks {
             if block_num == 0 {
                 break;
             }
@@ -858,4 +1020,16 @@ pub fn write_file(filename: &str, data: &[u8]) -> Result<(), &'static str> {
 pub fn delete_file(filename: &str) -> Result<(), &'static str> {
     let mut fs = SIMPLEFS.lock();
     fs.delete_file(filename)
+}
+
+/// Create a directory
+pub fn create_directory(path: &str) -> Result<(), &'static str> {
+    let mut fs = SIMPLEFS.lock();
+    fs.create_directory(path)
+}
+
+/// List contents of a directory
+pub fn list_directory(path: &str) -> Result<Vec<(String, u32, bool)>, &'static str> {
+    let fs = SIMPLEFS.lock();
+    fs.list_directory(path)
 }

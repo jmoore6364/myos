@@ -202,6 +202,13 @@ impl VirtualFileSystem {
     pub fn create_directory(&mut self, path: &str) -> Result<(), String> {
         let full_path = self.normalize_path(path);
 
+        // Check if path is on SimpleFS mount (/disk/*)
+        if full_path.starts_with("/disk/") {
+            let dirname = &full_path[6..]; // Strip "/disk/"
+            return crate::simplefs::create_directory(dirname)
+                .map_err(|e| format!("SimpleFS error: {}", e));
+        }
+
         if self.root.contains_key(&full_path) {
             return Err(format!("Directory already exists: {}", path));
         }
@@ -302,12 +309,21 @@ impl VirtualFileSystem {
     pub fn list_directory(&self, path: &str) -> Result<Vec<(String, FileType, usize)>, String> {
         let full_path = self.normalize_path(path);
 
-        // Check if listing /disk directory
-        if full_path == "/disk" {
-            match crate::simplefs::list_files() {
-                Ok(files) => {
-                    let items = files.into_iter()
-                        .map(|(name, size)| (name, FileType::File, size as usize))
+        // Check if listing /disk directory or subdirectory
+        if full_path.starts_with("/disk") {
+            let dir_path = if full_path == "/disk" {
+                "/" // Root of SimpleFS
+            } else {
+                &full_path[6..] // Strip "/disk/"
+            };
+
+            match crate::simplefs::list_directory(dir_path) {
+                Ok(entries) => {
+                    let items = entries.into_iter()
+                        .map(|(name, size, is_dir)| {
+                            let file_type = if is_dir { FileType::Directory } else { FileType::File };
+                            (name, file_type, size as usize)
+                        })
                         .collect();
                     return Ok(items);
                 }
