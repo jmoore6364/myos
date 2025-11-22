@@ -177,19 +177,26 @@ impl VirtualFileSystem {
     pub fn create_file(&mut self, path: &str, content: String) -> Result<(), String> {
         let full_path = self.normalize_path(path);
 
-        if self.root.contains_key(&full_path) {
-            return Err(format!("File already exists: {}", path));
+        // Check if path is on SimpleFS mount (/disk/*)
+        if full_path.starts_with("/disk/") {
+            let filename = &full_path[6..]; // Strip "/disk/"
+            crate::simplefs::create_file(filename, content.as_bytes())
+                .map_err(|e| format!("SimpleFS error: {}", e))
+        } else {
+            if self.root.contains_key(&full_path) {
+                return Err(format!("File already exists: {}", path));
+            }
+
+            // Extract filename
+            let filename = String::from(full_path.rsplit('/').next().unwrap_or(path));
+
+            self.root.insert(
+                full_path,
+                FileNode::new_file(filename, content)
+            );
+
+            Ok(())
         }
-
-        // Extract filename
-        let filename = String::from(full_path.rsplit('/').next().unwrap_or(path));
-
-        self.root.insert(
-            full_path,
-            FileNode::new_file(filename, content)
-        );
-
-        Ok(())
     }
 
     pub fn create_directory(&mut self, path: &str) -> Result<(), String> {
@@ -212,12 +219,22 @@ impl VirtualFileSystem {
     pub fn read_file(&self, path: &str) -> Result<String, String> {
         let full_path = self.normalize_path(path);
 
-        match self.root.get(&full_path) {
-            Some(node) => match node.file_type {
-                FileType::File => Ok(node.content.clone()),
-                FileType::Directory => Err(format!("{} is a directory", path)),
-            },
-            None => Err(format!("File not found: {}", path)),
+        // Check if path is on SimpleFS mount (/disk/*)
+        if full_path.starts_with("/disk/") {
+            let filename = &full_path[6..]; // Strip "/disk/"
+            match crate::simplefs::read_file(filename) {
+                Ok(data) => String::from_utf8(data)
+                    .map_err(|_| format!("File contains invalid UTF-8: {}", path)),
+                Err(e) => Err(format!("SimpleFS error: {}", e)),
+            }
+        } else {
+            match self.root.get(&full_path) {
+                Some(node) => match node.file_type {
+                    FileType::File => Ok(node.content.clone()),
+                    FileType::Directory => Err(format!("{} is a directory", path)),
+                },
+                None => Err(format!("File not found: {}", path)),
+            }
         }
     }
 
@@ -271,6 +288,19 @@ impl VirtualFileSystem {
     pub fn list_directory(&self, path: &str) -> Result<Vec<(String, FileType, usize)>, String> {
         let full_path = self.normalize_path(path);
 
+        // Check if listing /disk directory
+        if full_path == "/disk" {
+            match crate::simplefs::list_files() {
+                Ok(files) => {
+                    let items = files.into_iter()
+                        .map(|(name, size)| (name, FileType::File, size as usize))
+                        .collect();
+                    return Ok(items);
+                }
+                Err(e) => return Err(format!("SimpleFS error: {}", e)),
+            }
+        }
+
         // Check if directory exists
         match self.root.get(&full_path) {
             Some(node) => match node.file_type {
@@ -304,6 +334,11 @@ impl VirtualFileSystem {
                     ));
                 }
             }
+        }
+
+        // Add /disk mount point if listing root
+        if full_path == "/" {
+            entries.push((String::from("disk"), FileType::Directory, 0));
         }
 
         Ok(entries)
