@@ -132,6 +132,7 @@ pub enum SignalAction {
 }
 
 /// Signal disposition (how a process handles signals)
+#[derive(Clone)]
 pub struct SignalDisposition {
     /// Map of signal to action
     handlers: BTreeMap<u64, SignalAction>,

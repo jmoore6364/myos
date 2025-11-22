@@ -310,6 +310,77 @@ impl Process {
         // Return stack pointer (aligned to 16 bytes as required by x86-64 ABI)
         Ok(STACK_TOP & !0xF)
     }
+
+    /// Fork this process, creating a duplicate child process
+    ///
+    /// Returns a new Process that is an exact copy of this one,
+    /// except for having a different PID and parent_pid.
+    pub fn fork(&self) -> Result<Process, &'static str> {
+        use crate::memory::process_memory;
+
+        // Get parent's page table
+        let parent_pt = self.page_table_phys
+            .ok_or("Parent process has no page table")?;
+
+        // Copy the parent's page table
+        let child_pt = process_memory::copy_page_table(parent_pt)
+            .ok_or("Failed to copy page table")?;
+
+        // Create the child process
+        let child_pid = NEXT_PID.fetch_add(1, Ordering::Relaxed);
+        let child = Process {
+            pid: child_pid,
+            parent_pid: Some(self.pid),
+            name: self.name.clone(),
+            state: ProcessState::Ready,
+            priority: self.priority,
+            exit_code: None,
+            children: Vec::new(),
+            cwd: self.cwd.clone(),
+            file_descriptors: self.file_descriptors.clone(),
+            next_fd: self.next_fd,
+            memory_usage: self.memory_usage,
+            cpu_time: 0,
+            signal_disposition: self.signal_disposition.clone(),
+            page_table_phys: Some(child_pt),
+        };
+
+        Ok(child)
+    }
+
+    /// Replace this process with a new program (exec)
+    ///
+    /// Loads a new ELF binary, replacing the current process's memory space.
+    /// Returns the entry point address on success.
+    pub fn exec(&mut self, elf_data: &[u8]) -> Result<u64, &'static str> {
+        use crate::memory::process_memory;
+
+        // Get the process's page table
+        let page_table_phys = self.page_table_phys
+            .ok_or("Process has no page table")?;
+
+        // Create a new page table (this effectively clears user space)
+        let new_pt = process_memory::create_process_page_table()
+            .ok_or("Failed to create new page table")?;
+
+        // Free the old page table (TODO: implement proper cleanup)
+        // For now, we just leak the old pages - this should be fixed in production
+
+        // Update process to use new page table
+        self.page_table_phys = Some(new_pt);
+        self.memory_usage = 0;
+
+        // Load the ELF binary
+        let entry_point = self.load_elf(elf_data)?;
+
+        // Set up new user stack
+        let _stack_ptr = self.setup_user_stack()?;
+
+        // Reset signal handlers to defaults
+        self.signal_disposition = crate::signal::SignalDisposition::new();
+
+        Ok(entry_point)
+    }
 }
 
 /// Process table - global registry of all processes
