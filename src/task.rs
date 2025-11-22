@@ -256,25 +256,16 @@ impl Scheduler {
 
 // Global function called from timer interrupt
 pub fn schedule() {
-    // NOTE: Context switching from interrupt handlers requires special handling
-    // of the interrupt stack frame. For now, we just track task state without
-    // actually switching contexts. Manual context switching can be done via
-    // the scheduler's switch_to() method.
+    // NOTE: Context switching from interrupt handlers is tricky because of the
+    // interrupt stack frame. This implementation attempts preemptive scheduling.
+    // If issues arise, the manual switch_to() method can be used instead.
 
-    // Just update task states for now
     let mut scheduler = crate::SCHEDULER.lock();
 
     if scheduler.tasks.is_empty() {
         return;
     }
 
-    // Mark current task as ready (if running)
-    if let Some(index) = scheduler.current_task {
-        if scheduler.tasks[index].state() == TaskState::Running {
-            scheduler.tasks[index].set_state(TaskState::Ready);
-        }
-    }
-
-    // Move to next task
-    scheduler.schedule_next();
+    // Perform preemptive context switch
+    scheduler.preemptive_schedule();
 }

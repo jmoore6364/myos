@@ -379,17 +379,32 @@ fn syscall_exec(name_ptr: u64, name_len: u64) -> u64 {
 
     println!("exec(): Program loaded, entry point: 0x{:x}", entry_point);
 
-    // NOTE: In a full implementation, we would need to:
-    // 1. Switch to the new process's page table
-    // 2. Set up the user-mode stack
-    // 3. Jump to the entry point in user mode (Ring 3)
-    //
-    // This requires returning to user mode with IRETQ or SYSRET.
-    // For now, we return success (0) to indicate the exec worked.
-    // The actual user-mode execution would need to be triggered by
-    // the scheduler or a separate mechanism.
+    // Get the process's page table and stack for user-mode transition
+    let (page_table_phys, user_stack) = {
+        let table = crate::process::PROCESS_TABLE.lock();
+        let process = table.get_process(current_pid)
+            .expect("Process disappeared after exec");
 
-    0
+        let pt = process.page_table_phys()
+            .expect("Process has no page table after exec");
+
+        // User stack is at the top of user space
+        // This should match the value set up in Process::setup_user_stack()
+        const STACK_TOP: u64 = 0x7FFF_FFFF_F000;
+
+        (pt, STACK_TOP)
+    };
+
+    println!("exec(): Jumping to user mode at 0x{:x}, stack at 0x{:x}", entry_point, user_stack);
+
+    // Jump to user mode - this does not return!
+    unsafe {
+        crate::usermode::jump_to_usermode(
+            x86_64::VirtAddr::new(entry_point),
+            x86_64::VirtAddr::new(user_stack),
+            Some(page_table_phys),
+        )
+    }
 }
 
 /// Syscall: Set signal handler
