@@ -98,6 +98,9 @@ impl Shell {
             "switch" => self.cmd_switch(args),
             // Process commands
             "proc" => self.cmd_proc(args),
+            // IPC commands
+            "pipetest" => self.cmd_pipetest(args),
+            "shmtest" => self.cmd_shmtest(args),
             // Disk commands
             "diskinfo" => self.cmd_diskinfo(args),
             "diskread" => self.cmd_diskread(args),
@@ -170,6 +173,10 @@ impl Shell {
         println!("  proc            - List all processes");
         println!("  proc info <pid> - Show detailed process info");
         println!("  proc create <name> - Create a new process");
+        println!();
+        println!("IPC Testing:");
+        println!("  pipetest        - Test pipe creation and I/O");
+        println!("  shmtest         - Test shared memory");
         println!();
         println!("Disk I/O:");
         println!("  diskinfo        - Show disk information");
@@ -1331,5 +1338,162 @@ impl Shell {
         println!("  ✓ INT 0x80 syscall handler active");
         println!("  ✓ Memory isolation via page tables");
         println!("  ✓ Preemptive multitasking enabled");
+    }
+
+    fn cmd_pipetest(&self, _args: &[&str]) {
+        println!("╔═══════════════════════════════════════════════════════╗");
+        println!("║              Pipe IPC Test                           ║");
+        println!("╚═══════════════════════════════════════════════════════╝");
+        println!();
+
+        // Create a pipe
+        println!("Creating pipe...");
+        match crate::pipe::create_pipe() {
+            Ok((read_fd, write_fd)) => {
+                println!("✓ Pipe created successfully!");
+                println!("  Read FD:  {}", read_fd);
+                println!("  Write FD: {}", write_fd);
+                println!();
+
+                // Test writing to pipe
+                let test_msg = b"Hello through the pipe!";
+                println!("Writing message: \"{}\"", core::str::from_utf8(test_msg).unwrap());
+
+                match crate::pipe::write_pipe(write_fd, test_msg) {
+                    Ok(n) => {
+                        println!("✓ Wrote {} bytes to pipe", n);
+                        println!();
+
+                        // Test reading from pipe
+                        println!("Reading from pipe...");
+                        let mut buffer = [0u8; 256];
+
+                        match crate::pipe::read_pipe(read_fd, &mut buffer[..test_msg.len()]) {
+                            Ok(n) => {
+                                println!("✓ Read {} bytes from pipe", n);
+                                let read_str = core::str::from_utf8(&buffer[..n]).unwrap_or("<invalid UTF-8>");
+                                println!("  Message: \"{}\"", read_str);
+                                println!();
+
+                                if read_str == core::str::from_utf8(test_msg).unwrap() {
+                                    println!("✓ Test PASSED: Message matches!");
+                                } else {
+                                    println!("✗ Test FAILED: Message mismatch!");
+                                }
+                            }
+                            Err(e) => {
+                                println!("✗ Error reading from pipe: {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        println!("✗ Error writing to pipe: {}", e);
+                    }
+                }
+
+                // Clean up
+                println!();
+                println!("Closing pipe...");
+                let _ = crate::pipe::close_pipe(read_fd);
+                let _ = crate::pipe::close_pipe(write_fd);
+                println!("✓ Pipe closed");
+            }
+            Err(e) => {
+                println!("✗ Error creating pipe: {}", e);
+            }
+        }
+
+        println!();
+        println!("Pipe test complete!");
+    }
+
+    fn cmd_shmtest(&self, _args: &[&str]) {
+        println!("╔═══════════════════════════════════════════════════════╗");
+        println!("║         Shared Memory IPC Test                       ║");
+        println!("╚═══════════════════════════════════════════════════════╝");
+        println!();
+
+        // Create shared memory segment
+        const SHM_SIZE: usize = 4096;
+        const TEST_KEY: i32 = 1234;
+
+        println!("Creating shared memory segment...");
+        println!("  Key:  {}", TEST_KEY);
+        println!("  Size: {} bytes", SHM_SIZE);
+
+        match crate::shm::shmget(TEST_KEY, SHM_SIZE, 0o666) {
+            Ok(shm_id) => {
+                println!("✓ Shared memory created!");
+                println!("  Segment ID: {}", shm_id);
+                println!();
+
+                // Attach to shared memory
+                println!("Attaching to shared memory...");
+                match crate::shm::shmat(shm_id, 0) {
+                    Ok(addr) => {
+                        println!("✓ Attached at address: 0x{:x}", addr);
+                        println!();
+
+                        // Write test data
+                        println!("Writing test data...");
+                        let test_data = b"Shared memory test data!";
+                        unsafe {
+                            let ptr = addr as *mut u8;
+                            for (i, &byte) in test_data.iter().enumerate() {
+                                *ptr.add(i) = byte;
+                            }
+                        }
+                        println!("✓ Wrote {} bytes", test_data.len());
+                        println!();
+
+                        // Read back test data
+                        println!("Reading back data...");
+                        let mut buffer = [0u8; 256];
+                        unsafe {
+                            let ptr = addr as *const u8;
+                            for i in 0..test_data.len() {
+                                buffer[i] = *ptr.add(i);
+                            }
+                        }
+
+                        let read_str = core::str::from_utf8(&buffer[..test_data.len()])
+                            .unwrap_or("<invalid UTF-8>");
+                        println!("  Data: \"{}\"", read_str);
+                        println!();
+
+                        if read_str == core::str::from_utf8(test_data).unwrap() {
+                            println!("✓ Test PASSED: Data matches!");
+                        } else {
+                            println!("✗ Test FAILED: Data mismatch!");
+                        }
+
+                        // Detach
+                        println!();
+                        println!("Detaching from shared memory...");
+                        match crate::shm::shmdt(addr) {
+                            Ok(_) => println!("✓ Detached"),
+                            Err(e) => println!("✗ Error detaching: {}", e),
+                        }
+                    }
+                    Err(e) => {
+                        println!("✗ Error attaching: {}", e);
+                    }
+                }
+
+                // Clean up
+                println!();
+                println!("Removing shared memory segment...");
+                match crate::shm::shmctl(shm_id, 0) {  // IPC_RMID = 0
+                    Ok(_) => println!("✓ Removed"),
+                    Err(e) => println!("✗ Error removing: {}", e),
+                }
+            }
+            Err(e) => {
+                println!("✗ Error creating shared memory: {}", e);
+            }
+        }
+
+        println!();
+        println!("Shared memory test complete!");
     }
 }

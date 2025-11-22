@@ -496,10 +496,21 @@ fn syscall_read(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     unsafe {
         let buf = core::slice::from_raw_parts_mut(buf_ptr as *mut u8, len as usize);
 
-        // Try to read from pipe
-        match crate::pipe::read_pipe(fd as u32, buf) {
-            Ok(n) => n as u64,
-            Err(_) => u64::MAX,
+        // Handle standard file descriptors
+        match fd {
+            0 => {
+                // stdin - read from keyboard buffer
+                // For now, return 0 (no data available) since we'd need async keyboard handling
+                // In a full implementation, this would block until keyboard input is available
+                0
+            }
+            _ => {
+                // Try to read from pipe or other file descriptor
+                match crate::pipe::read_pipe(fd as u32, buf) {
+                    Ok(n) => n as u64,
+                    Err(_) => u64::MAX,
+                }
+            }
         }
     }
 }
