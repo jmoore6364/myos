@@ -516,10 +516,28 @@ fn syscall_write(fd: u64, buf_ptr: u64, len: u64) -> u64 {
     unsafe {
         let buf = core::slice::from_raw_parts(buf_ptr as *const u8, len as usize);
 
-        // Try to write to pipe
-        match crate::pipe::write_pipe(fd as u32, buf) {
-            Ok(n) => n as u64,
-            Err(_) => u64::MAX,
+        // Handle standard file descriptors
+        match fd {
+            1 | 2 => {
+                // stdout (1) or stderr (2) - write to console
+                if let Ok(s) = core::str::from_utf8(buf) {
+                    print!("{}", s);
+                    len // Return number of bytes written
+                } else {
+                    // Not valid UTF-8, print as bytes
+                    for &byte in buf {
+                        print!("{}", byte as char);
+                    }
+                    len
+                }
+            }
+            _ => {
+                // Try to write to pipe or other file descriptor
+                match crate::pipe::write_pipe(fd as u32, buf) {
+                    Ok(n) => n as u64,
+                    Err(_) => u64::MAX,
+                }
+            }
         }
     }
 }
