@@ -110,6 +110,11 @@ impl Shell {
             "stat" => self.cmd_stat(args),
             "file" => self.cmd_file(args),
             "which" => self.cmd_which(args),
+            "sort" => self.cmd_sort(args),
+            "uniq" => self.cmd_uniq(args),
+            "cut" => self.cmd_cut(args),
+            "tr" => self.cmd_tr(args),
+            "diff" => self.cmd_diff(args),
             // AI command
             "ai" => self.cmd_ai(args),
             // Task/Scheduler commands
@@ -193,6 +198,13 @@ impl Shell {
         println!("  stat <file>     - Display file status and information");
         println!("  file <file>     - Determine file type");
         println!("  which <cmd>     - Locate a command");
+        println!();
+        println!("Text Processing:");
+        println!("  sort <file>     - Sort lines in a file");
+        println!("  uniq <file>     - Remove duplicate adjacent lines");
+        println!("  cut -f N <file> - Cut out selected fields");
+        println!("  tr <set1> <set2> <file> - Translate characters");
+        println!("  diff <f1> <f2>  - Compare two files");
         println!();
         println!("ELF Binaries:");
         println!("  loadelf <file>  - Load and execute an ELF binary from filesystem");
@@ -2560,6 +2572,183 @@ Available IPC methods:\n\n\
             println!("/builtin/{}", command);
         } else {
             println!("{} not found", command);
+        }
+    }
+
+    fn cmd_sort(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+        use alloc::vec::Vec;
+
+        if args.is_empty() {
+            println!("Usage: sort <file>");
+            return;
+        }
+
+        let vfs = VFS.lock();
+        match vfs.read_file(args[0]) {
+            Ok(content) => {
+                let mut lines: Vec<&str> = content.lines().collect();
+                lines.sort();
+                for line in lines {
+                    println!("{}", line);
+                }
+            }
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_uniq(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.is_empty() {
+            println!("Usage: uniq <file>");
+            return;
+        }
+
+        let vfs = VFS.lock();
+        match vfs.read_file(args[0]) {
+            Ok(content) => {
+                let lines: Vec<&str> = content.lines().collect();
+                let mut prev_line = "";
+                for line in lines {
+                    if line != prev_line {
+                        println!("{}", line);
+                        prev_line = line;
+                    }
+                }
+            }
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_cut(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.len() < 3 || args[0] != "-f" {
+            println!("Usage: cut -f <field> <file>");
+            println!("Example: cut -f 2 file.txt  (extract 2nd field, space-separated)");
+            return;
+        }
+
+        let field_num: usize = match args[1].parse::<usize>() {
+            Ok(n) if n > 0 => n - 1,  // Convert to 0-indexed
+            _ => {
+                println!("Error: Invalid field number");
+                return;
+            }
+        };
+
+        let vfs = VFS.lock();
+        match vfs.read_file(args[2]) {
+            Ok(content) => {
+                for line in content.lines() {
+                    let fields: Vec<&str> = line.split_whitespace().collect();
+                    if field_num < fields.len() {
+                        println!("{}", fields[field_num]);
+                    }
+                }
+            }
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_tr(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+        use alloc::string::String;
+
+        if args.len() < 3 {
+            println!("Usage: tr <set1> <set2> <file>");
+            println!("Example: tr abc ABC file.txt  (translate a->A, b->B, c->C)");
+            return;
+        }
+
+        let from_chars: Vec<char> = args[0].chars().collect();
+        let to_chars: Vec<char> = args[1].chars().collect();
+
+        if from_chars.len() != to_chars.len() {
+            println!("Error: set1 and set2 must have same length");
+            return;
+        }
+
+        let vfs = VFS.lock();
+        match vfs.read_file(args[2]) {
+            Ok(content) => {
+                let translated: String = content
+                    .chars()
+                    .map(|c| {
+                        if let Some(pos) = from_chars.iter().position(|&fc| fc == c) {
+                            to_chars[pos]
+                        } else {
+                            c
+                        }
+                    })
+                    .collect();
+                print!("{}", translated);
+            }
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_diff(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.len() < 2 {
+            println!("Usage: diff <file1> <file2>");
+            return;
+        }
+
+        let vfs = VFS.lock();
+        let file1 = match vfs.read_file(args[0]) {
+            Ok(content) => content,
+            Err(e) => {
+                println!("Error reading {}: {}", args[0], e);
+                return;
+            }
+        };
+
+        let file2 = match vfs.read_file(args[1]) {
+            Ok(content) => content,
+            Err(e) => {
+                println!("Error reading {}: {}", args[1], e);
+                return;
+            }
+        };
+
+        let lines1: Vec<&str> = file1.lines().collect();
+        let lines2: Vec<&str> = file2.lines().collect();
+
+        if lines1 == lines2 {
+            println!("Files are identical");
+            return;
+        }
+
+        println!("--- {}", args[0]);
+        println!("+++ {}", args[1]);
+
+        let max_len = lines1.len().max(lines2.len());
+        for i in 0..max_len {
+            let line1 = lines1.get(i);
+            let line2 = lines2.get(i);
+
+            match (line1, line2) {
+                (Some(l1), Some(l2)) => {
+                    if l1 != l2 {
+                        println!("{}c{}", i + 1, i + 1);
+                        println!("< {}", l1);
+                        println!("---");
+                        println!("> {}", l2);
+                    }
+                }
+                (Some(l1), None) => {
+                    println!("{}d{}", i + 1, i);
+                    println!("< {}", l1);
+                }
+                (None, Some(l2)) => {
+                    println!("{}a{}", i, i + 1);
+                    println!("> {}", l2);
+                }
+                (None, None) => unreachable!(),
+            }
         }
     }
 }
