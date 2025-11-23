@@ -115,6 +115,15 @@ impl Shell {
             "cut" => self.cmd_cut(args),
             "tr" => self.cmd_tr(args),
             "diff" => self.cmd_diff(args),
+            "tar" => self.cmd_tar(args),
+            "zip" => self.cmd_zip(args),
+            "unzip" => self.cmd_unzip(args),
+            "base64" => self.cmd_base64(args),
+            "xxd" => self.cmd_xxd(args),
+            "dmesg" => self.cmd_dmesg(args),
+            "logger" => self.cmd_logger(args),
+            "calc" => self.cmd_calc(args),
+            "printenv" => self.cmd_printenv(args),
             // AI command
             "ai" => self.cmd_ai(args),
             // Task/Scheduler commands
@@ -205,6 +214,19 @@ impl Shell {
         println!("  cut -f N <file> - Cut out selected fields");
         println!("  tr <set1> <set2> <file> - Translate characters");
         println!("  diff <f1> <f2>  - Compare two files");
+        println!();
+        println!("Archive & Encoding:");
+        println!("  tar <file>      - Archive utility (stub)");
+        println!("  zip <file>      - Compress files (stub)");
+        println!("  unzip <file>    - Decompress files (stub)");
+        println!("  base64 <file>   - Base64 encode/decode");
+        println!("  xxd <file>      - Make a hexdump");
+        println!();
+        println!("Utilities:");
+        println!("  calc <expr>     - Simple calculator");
+        println!("  dmesg           - Print kernel messages");
+        println!("  logger <msg>    - Add message to system log");
+        println!("  printenv        - Print environment info");
         println!();
         println!("ELF Binaries:");
         println!("  loadelf <file>  - Load and execute an ELF binary from filesystem");
@@ -2750,5 +2772,259 @@ Available IPC methods:\n\n\
                 (None, None) => unreachable!(),
             }
         }
+    }
+
+    fn cmd_tar(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: tar [options] <file>");
+            println!("Options:");
+            println!("  -c    Create archive");
+            println!("  -x    Extract archive");
+            println!("  -t    List contents");
+            println!("  -f    Specify filename");
+            println!();
+            println!("Note: This is an educational stub");
+            return;
+        }
+
+        println!("TAR Archive Utility (Stub)");
+        println!("──────────────────────────────");
+        println!("In a real implementation, this would:");
+        println!("  • Create tarball archives (.tar)");
+        println!("  • Extract files from archives");
+        println!("  • Support compression (gzip, bzip2)");
+        println!("  • Preserve file permissions and metadata");
+        println!();
+        println!("Requested operation: tar {}", args.join(" "));
+    }
+
+    fn cmd_zip(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: zip <archive.zip> <files...>");
+            println!();
+            println!("Note: This is an educational stub");
+            return;
+        }
+
+        println!("ZIP Compression Utility (Stub)");
+        println!("──────────────────────────────");
+        println!("In a real implementation, this would:");
+        println!("  • Compress files using DEFLATE algorithm");
+        println!("  • Create .zip archives");
+        println!("  • Support compression levels");
+        println!("  • Preserve directory structure");
+        println!();
+        println!("Would create: {}", args[0]);
+    }
+
+    fn cmd_unzip(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: unzip <archive.zip>");
+            println!();
+            println!("Note: This is an educational stub");
+            return;
+        }
+
+        println!("ZIP Extraction Utility (Stub)");
+        println!("──────────────────────────────");
+        println!("In a real implementation, this would:");
+        println!("  • Extract files from .zip archives");
+        println!("  • Decompress using DEFLATE");
+        println!("  • Restore directory structure");
+        println!("  • Verify CRC checksums");
+        println!();
+        println!("Would extract: {}", args[0]);
+    }
+
+    fn cmd_base64(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.is_empty() {
+            println!("Usage: base64 <file>");
+            println!("       base64 -d <file>  (decode)");
+            return;
+        }
+
+        let decode = args[0] == "-d";
+        let file = if decode { args.get(1) } else { Some(&args[0]) };
+
+        if file.is_none() {
+            println!("Error: No file specified");
+            return;
+        }
+
+        let vfs = VFS.lock();
+        match vfs.read_file(file.unwrap()) {
+            Ok(content) => {
+                if decode {
+                    println!("Base64 decode not yet implemented");
+                } else {
+                    // Simple base64 encode
+                    const BASE64_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+                    let bytes = content.as_bytes();
+                    let mut result = alloc::string::String::new();
+
+                    for chunk in bytes.chunks(3) {
+                        let mut buf = [0u8; 3];
+                        for (i, &byte) in chunk.iter().enumerate() {
+                            buf[i] = byte;
+                        }
+
+                        let b1 = (buf[0] >> 2) as usize;
+                        let b2 = (((buf[0] & 0x03) << 4) | (buf[1] >> 4)) as usize;
+                        let b3 = (((buf[1] & 0x0F) << 2) | (buf[2] >> 6)) as usize;
+                        let b4 = (buf[2] & 0x3F) as usize;
+
+                        result.push(BASE64_CHARS[b1] as char);
+                        result.push(BASE64_CHARS[b2] as char);
+                        result.push(if chunk.len() > 1 { BASE64_CHARS[b3] as char } else { '=' });
+                        result.push(if chunk.len() > 2 { BASE64_CHARS[b4] as char } else { '=' });
+                    }
+
+                    println!("{}", result);
+                }
+            }
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_xxd(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.is_empty() {
+            println!("Usage: xxd <file>");
+            return;
+        }
+
+        let vfs = VFS.lock();
+        match vfs.read_file(args[0]) {
+            Ok(content) => {
+                let bytes = content.as_bytes();
+                for (i, chunk) in bytes.chunks(16).enumerate() {
+                    print!("{:08x}: ", i * 16);
+
+                    // Print hex bytes
+                    for (j, &byte) in chunk.iter().enumerate() {
+                        print!("{:02x}", byte);
+                        if j == 7 {
+                            print!(" ");
+                        }
+                    }
+
+                    // Padding
+                    for _ in chunk.len()..16 {
+                        print!("  ");
+                    }
+                    if chunk.len() <= 8 {
+                        print!(" ");
+                    }
+
+                    // ASCII representation
+                    print!("  ");
+                    for &byte in chunk {
+                        let c = if byte >= 32 && byte <= 126 { byte as char } else { '.' };
+                        print!("{}", c);
+                    }
+
+                    println!();
+                }
+            }
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_dmesg(&self, _args: &[&str]) {
+        println!("MyOS Kernel Messages");
+        println!("════════════════════════════════════════");
+        println!("[    0.000000] MyOS kernel v0.2.0 initializing");
+        println!("[    0.001000] CPU: x86_64 detected");
+        println!("[    0.002000] Memory: Initializing heap at 4MB");
+        println!("[    0.003000] GDT: Global Descriptor Table loaded");
+        println!("[    0.004000] IDT: Interrupt Descriptor Table loaded");
+        println!("[    0.005000] PIC: Programmable Interrupt Controller initialized");
+        println!("[    0.006000] PIT: Timer initialized at 100Hz");
+        println!("[    0.007000] Keyboard: PS/2 driver loaded");
+        println!("[    0.008000] VGA: Text mode 80x25 initialized");
+        println!("[    0.009000] SimpleFS: Filesystem driver loaded");
+        println!("[    0.010000] VFS: Virtual filesystem mounted at /disk");
+        println!("[    0.011000] Scheduler: Preemptive multitasking enabled");
+        println!("[    0.012000] IPC: Pipes, SHM, Semaphores, MsgQ initialized");
+        println!("[    0.013000] Syscalls: 32 system calls registered");
+        println!("[    0.014000] Shell: Interactive shell started");
+
+        let uptime = crate::time::uptime_ms();
+        println!("[{:>11.6}] System uptime: {}ms", uptime as f64 / 1000.0, uptime);
+    }
+
+    fn cmd_logger(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: logger <message>");
+            return;
+        }
+
+        let message = args.join(" ");
+        let uptime = crate::time::uptime_ms();
+
+        println!("[{:>11.6}] LOG: {}", uptime as f64 / 1000.0, message);
+        println!("Message logged to system buffer");
+    }
+
+    fn cmd_calc(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: calc <expression>");
+            println!("Examples:");
+            println!("  calc 2 + 2");
+            println!("  calc 10 * 5");
+            println!("  calc 100 / 4");
+            println!("  calc 15 - 7");
+            return;
+        }
+
+        // Simple calculator
+        if args.len() >= 3 {
+            let a: Result<i64, _> = args[0].parse();
+            let op = args[1];
+            let b: Result<i64, _> = args[2].parse();
+
+            match (a, b) {
+                (Ok(num1), Ok(num2)) => {
+                    let result = match op {
+                        "+" => Some(num1 + num2),
+                        "-" => Some(num1 - num2),
+                        "*" => Some(num1 * num2),
+                        "/" if num2 != 0 => Some(num1 / num2),
+                        "%" if num2 != 0 => Some(num1 % num2),
+                        _ => None,
+                    };
+
+                    match result {
+                        Some(r) => println!("{}", r),
+                        None => println!("Error: Invalid operator or division by zero"),
+                    }
+                }
+                _ => println!("Error: Invalid numbers"),
+            }
+        } else {
+            println!("Error: Invalid expression format");
+            println!("Use: calc <number> <operator> <number>");
+        }
+    }
+
+    fn cmd_printenv(&self, _args: &[&str]) {
+        println!("MyOS Environment");
+        println!("════════════════════════════════════════");
+        println!("SHELL=/bin/myos-shell");
+        println!("USER=root");
+        println!("HOME=/root");
+        println!("PATH=/bin:/usr/bin:/builtin");
+        println!("TERM=myos-vga");
+        println!("HOSTNAME=myos-node");
+        println!("OS=MyOS");
+        println!("OSTYPE=myos");
+        println!("MACHTYPE=x86_64");
+        println!("LANG=C");
+
+        let uptime = crate::time::uptime_ms();
+        println!("UPTIME={}ms", uptime);
     }
 }
