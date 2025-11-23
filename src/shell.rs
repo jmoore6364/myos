@@ -92,6 +92,13 @@ impl Shell {
             "write" => self.cmd_write(args),
             "cp" => self.cmd_cp(args),
             "mv" => self.cmd_mv(args),
+            "tree" => self.cmd_tree(args),
+            "wc" => self.cmd_wc(args),
+            "grep" => self.cmd_grep(args),
+            "tail" => self.cmd_tail(args),
+            "head" => self.cmd_head(args),
+            "du" => self.cmd_du(args),
+            "find" => self.cmd_find(args),
             // AI command
             "ai" => self.cmd_ai(args),
             // Task/Scheduler commands
@@ -156,6 +163,13 @@ impl Shell {
         println!("  write <file> <text> - Write text to file");
         println!("  cp <src> <dst>  - Copy file");
         println!("  mv <src> <dst>  - Move/rename file");
+        println!("  tree [path]     - Show directory tree");
+        println!("  wc <file>       - Count lines, words, bytes");
+        println!("  grep <pattern> <file> - Search for pattern in file");
+        println!("  head <file> [n] - Show first n lines (default 10)");
+        println!("  tail <file> [n] - Show last n lines (default 10)");
+        println!("  du [path]       - Show disk usage");
+        println!("  find <name>     - Find files by name pattern");
         println!();
         println!("ELF Binaries:");
         println!("  loadelf <file>  - Load and execute an ELF binary from filesystem");
@@ -2017,5 +2031,230 @@ Available IPC methods:\n\n\
 
         println!();
         println!("Message queue test complete!");
+    }
+
+    fn cmd_tree(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+        use alloc::string::ToString;
+
+        let path = if args.is_empty() { "/" } else { args[0] };
+        let vfs = VFS.lock();
+
+        println!("{}", path);
+        self.print_tree(&vfs, path, "", true);
+    }
+
+    fn print_tree(&self, vfs: &crate::vfs::VirtualFileSystem, path: &str, prefix: &str, is_last: bool) {
+        use alloc::format;
+
+        let entries = match vfs.list_directory(path) {
+            Ok(entries) => entries,
+            Err(_) => return,
+        };
+
+        for (i, (name, _file_type, _size)) in entries.iter().enumerate() {
+            let is_last_entry = i == entries.len() - 1;
+            let connector = if is_last_entry { "└── " } else { "├── " };
+            let extension = if is_last_entry { "    " } else { "│   " };
+
+            println!("{}{}{}", prefix, connector, name);
+
+            // Recursively print subdirectories
+            let full_path = if path == "/" {
+                format!("/{}", name)
+            } else {
+                format!("{}/{}", path, name)
+            };
+
+            let new_prefix = format!("{}{}", prefix, extension);
+            self.print_tree(vfs, &full_path, &new_prefix, is_last_entry);
+        }
+    }
+
+    fn cmd_wc(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.is_empty() {
+            println!("Usage: wc <file>");
+            return;
+        }
+
+        let vfs = VFS.lock();
+        match vfs.read_file(args[0]) {
+            Ok(content) => {
+                let lines = content.lines().count();
+                let words = content.split_whitespace().count();
+                let bytes = content.len();
+                println!("  {} {} {} {}", lines, words, bytes, args[0]);
+            }
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_grep(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.len() < 2 {
+            println!("Usage: grep <pattern> <file>");
+            return;
+        }
+
+        let pattern = args[0];
+        let file = args[1];
+
+        let vfs = VFS.lock();
+        match vfs.read_file(file) {
+            Ok(content) => {
+                let mut found = false;
+                for (line_num, line) in content.lines().enumerate() {
+                    if line.contains(pattern) {
+                        println!("{}:{}: {}", file, line_num + 1, line);
+                        found = true;
+                    }
+                }
+                if !found {
+                    println!("No matches found");
+                }
+            }
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_head(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.is_empty() {
+            println!("Usage: head <file> [n]");
+            return;
+        }
+
+        let file = args[0];
+        let n = if args.len() > 1 {
+            args[1].parse::<usize>().unwrap_or(10)
+        } else {
+            10
+        };
+
+        let vfs = VFS.lock();
+        match vfs.read_file(file) {
+            Ok(content) => {
+                for (i, line) in content.lines().enumerate() {
+                    if i >= n {
+                        break;
+                    }
+                    println!("{}", line);
+                }
+            }
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_tail(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+        use alloc::vec::Vec;
+
+        if args.is_empty() {
+            println!("Usage: tail <file> [n]");
+            return;
+        }
+
+        let file = args[0];
+        let n = if args.len() > 1 {
+            args[1].parse::<usize>().unwrap_or(10)
+        } else {
+            10
+        };
+
+        let vfs = VFS.lock();
+        match vfs.read_file(file) {
+            Ok(content) => {
+                let lines: Vec<&str> = content.lines().collect();
+                let start = if lines.len() > n { lines.len() - n } else { 0 };
+                for line in &lines[start..] {
+                    println!("{}", line);
+                }
+            }
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_du(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        let path = if args.is_empty() { "/" } else { args[0] };
+        let vfs = VFS.lock();
+
+        let size = self.calculate_dir_size(&vfs, path);
+        println!("{} bytes\t{}", size, path);
+    }
+
+    fn calculate_dir_size(&self, vfs: &crate::vfs::VirtualFileSystem, path: &str) -> usize {
+        use alloc::format;
+
+        let mut total = 0;
+
+        if let Ok(entries) = vfs.list_directory(path) {
+            for (name, _file_type, _size) in entries {
+                let full_path = if path == "/" {
+                    format!("/{}", name)
+                } else {
+                    format!("{}/{}", path, name)
+                };
+
+                // Try to read as file
+                if let Ok(content) = vfs.read_file(&full_path) {
+                    total += content.len();
+                } else {
+                    // Must be a directory
+                    total += self.calculate_dir_size(vfs, &full_path);
+                }
+            }
+        }
+
+        total
+    }
+
+    fn cmd_find(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.is_empty() {
+            println!("Usage: find <pattern>");
+            return;
+        }
+
+        let pattern = args[0];
+        let vfs = VFS.lock();
+
+        println!("Searching for files matching '{}'...", pattern);
+        self.find_files(&vfs, "/", pattern);
+    }
+
+    fn find_files(&self, vfs: &crate::vfs::VirtualFileSystem, path: &str, pattern: &str) {
+        use alloc::format;
+
+        if let Ok(entries) = vfs.list_directory(path) {
+            for (name, _file_type, _size) in entries {
+                if name.contains(pattern) {
+                    let full_path = if path == "/" {
+                        format!("/{}", name)
+                    } else {
+                        format!("{}/{}", path, name)
+                    };
+                    println!("{}", full_path);
+                }
+
+                // Recurse into subdirectories
+                let full_path = if path == "/" {
+                    format!("/{}", name)
+                } else {
+                    format!("{}/{}", path, name)
+                };
+
+                // Check if it's a directory by trying to list it
+                if vfs.list_directory(&full_path).is_ok() {
+                    self.find_files(vfs, &full_path, pattern);
+                }
+            }
+        }
     }
 }
