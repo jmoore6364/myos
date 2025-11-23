@@ -85,10 +85,13 @@ impl Shell {
             "cd" => self.cmd_cd(args),
             "pwd" => self.cmd_pwd(args),
             "cat" => self.cmd_cat(args),
+            "hexdump" => self.cmd_hexdump(args),
             "mkdir" => self.cmd_mkdir(args),
             "touch" => self.cmd_touch(args),
             "rm" => self.cmd_rm(args),
             "write" => self.cmd_write(args),
+            "cp" => self.cmd_cp(args),
+            "mv" => self.cmd_mv(args),
             // AI command
             "ai" => self.cmd_ai(args),
             // Task/Scheduler commands
@@ -111,6 +114,7 @@ impl Shell {
             // Filesystem commands
             "fsformat" => self.cmd_fsformat(args),
             "fsinfo" => self.cmd_fsinfo(args),
+            "init-disk" => self.cmd_init_disk(args),
             // ELF loader
             "loadelf" => self.cmd_loadelf(args),
             // Test user mode
@@ -145,10 +149,13 @@ impl Shell {
         println!("  cd <path>       - Change directory");
         println!("  pwd             - Print working directory");
         println!("  cat <file>      - Display file contents");
+        println!("  hexdump <file>  - Display file in hexadecimal");
         println!("  mkdir <dir>     - Create directory");
         println!("  touch <file>    - Create empty file");
         println!("  rm <file>       - Remove file or directory");
         println!("  write <file> <text> - Write text to file");
+        println!("  cp <src> <dst>  - Copy file");
+        println!("  mv <src> <dst>  - Move/rename file");
         println!();
         println!("ELF Binaries:");
         println!("  loadelf <file>  - Load and execute an ELF binary from filesystem");
@@ -192,6 +199,7 @@ impl Shell {
         println!("Filesystem:");
         println!("  fsformat        - Format disk with SimpleFS");
         println!("  fsinfo          - Show filesystem information");
+        println!("  init-disk       - Create example files and directories");
         println!();
         println!("Other:");
         println!("  echo <text>     - Print text to the screen");
@@ -693,6 +701,116 @@ impl Shell {
         match vfs.read_file(args[0]) {
             Ok(content) => print!("{}", content),
             Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_hexdump(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.is_empty() {
+            println!("Usage: hexdump <file>");
+            return;
+        }
+
+        let vfs = VFS.lock();
+        match vfs.read_file(args[0]) {
+            Ok(content) => {
+                let bytes = content.as_bytes();
+                println!("Hexdump of '{}' ({} bytes):", args[0], bytes.len());
+                println!();
+
+                for (i, chunk) in bytes.chunks(16).enumerate() {
+                    // Address
+                    print!("{:08x}  ", i * 16);
+
+                    // Hex bytes
+                    for (j, byte) in chunk.iter().enumerate() {
+                        print!("{:02x} ", byte);
+                        if j == 7 {
+                            print!(" ");
+                        }
+                    }
+
+                    // Padding for incomplete lines
+                    for j in chunk.len()..16 {
+                        print!("   ");
+                        if j == 7 {
+                            print!(" ");
+                        }
+                    }
+
+                    // ASCII representation
+                    print!(" |");
+                    for byte in chunk {
+                        let c = if byte.is_ascii_graphic() || *byte == b' ' {
+                            *byte as char
+                        } else {
+                            '.'
+                        };
+                        print!("{}", c);
+                    }
+                    println!("|");
+                }
+            }
+            Err(e) => println!("Error: {}", e),
+        }
+    }
+
+    fn cmd_cp(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.len() < 2 {
+            println!("Usage: cp <source> <destination>");
+            return;
+        }
+
+        let mut vfs = VFS.lock();
+
+        // Read source file
+        let content = match vfs.read_file(args[0]) {
+            Ok(c) => c,
+            Err(e) => {
+                println!("Error reading source: {}", e);
+                return;
+            }
+        };
+
+        // Write to destination
+        match vfs.create_file(args[1], content) {
+            Ok(_) => println!("Copied '{}' to '{}'", args[0], args[1]),
+            Err(e) => println!("Error writing destination: {}", e),
+        }
+    }
+
+    fn cmd_mv(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.len() < 2 {
+            println!("Usage: mv <source> <destination>");
+            return;
+        }
+
+        let mut vfs = VFS.lock();
+
+        // Read source file
+        let content = match vfs.read_file(args[0]) {
+            Ok(c) => c,
+            Err(e) => {
+                println!("Error reading source: {}", e);
+                return;
+            }
+        };
+
+        // Write to destination
+        if let Err(e) = vfs.create_file(args[1], content) {
+            println!("Error writing destination: {}", e);
+            return;
+        }
+
+        // Delete source
+        match vfs.delete(args[0]) {
+            Ok(_) => println!("Moved '{}' to '{}'", args[0], args[1]),
+            Err(e) => println!("Error deleting source: {}", e),
         }
     }
 
@@ -1257,6 +1375,143 @@ impl Shell {
                 println!("Use 'fsformat' to format the disk");
             }
         }
+    }
+
+    fn cmd_init_disk(&self, _args: &[&str]) {
+        println!("╔═══════════════════════════════════════════════════════╗");
+        println!("║     Initializing Disk with Example Content          ║");
+        println!("╚═══════════════════════════════════════════════════════╝");
+        println!();
+        println!("Creating directory structure...");
+
+        // Create directories
+        if let Err(e) = crate::simplefs::create_directory("/docs") {
+            println!("Warning: Could not create /docs: {}", e);
+        } else {
+            println!("✓ Created /disk/docs");
+        }
+
+        if let Err(e) = crate::simplefs::create_directory("/examples") {
+            println!("Warning: Could not create /examples: {}", e);
+        } else {
+            println!("✓ Created /disk/examples");
+        }
+
+        if let Err(e) = crate::simplefs::create_directory("/tests") {
+            println!("Warning: Could not create /tests: {}", e);
+        } else {
+            println!("✓ Created /disk/tests");
+        }
+
+        println!();
+        println!("Creating example files...");
+
+        // Create README
+        let readme = "Welcome to MyOS Persistent Storage!\n\n\
+This filesystem (SimpleFS) supports:\n\
+- Nested subdirectories\n\
+- File creation, reading, writing, deletion\n\
+- Persistent storage on ATA disk\n\n\
+Try these commands:\n\
+  ls /disk\n\
+  cat /disk/docs/readme.txt\n\
+  hexdump /disk/examples/binary.dat\n\n\
+Explore and create your own files!\n";
+
+        if let Err(e) = crate::simplefs::create_file("/docs/readme.txt", readme.as_bytes()) {
+            println!("Warning: Could not create readme: {}", e);
+        } else {
+            println!("✓ Created /disk/docs/readme.txt");
+        }
+
+        // Create a test binary file
+        use alloc::vec::Vec;
+        let binary_data: Vec<u8> = (0..=255).collect();
+        if let Err(e) = crate::simplefs::create_file("/examples/binary.dat", &binary_data) {
+            println!("Warning: Could not create binary.dat: {}", e);
+        } else {
+            println!("✓ Created /disk/examples/binary.dat");
+        }
+
+        // Create syscall reference
+        let syscall_ref = "MyOS System Call Reference\n\n\
+INT 0x80 Syscalls:\n\
+  0  - exit(code)\n\
+  1  - yield()\n\
+  2  - print(str, len)\n\
+  6  - getpid()\n\
+  7  - getppid()\n\
+  8  - fork()\n\
+  11 - exec(path, argv)\n\
+  14 - pipe(fds)\n\
+  15 - read(fd, buf, len)\n\
+  16 - write(fd, buf, len)\n\n\
+Calling Convention:\n\
+  RAX = syscall number\n\
+  RDI = arg1, RSI = arg2, RDX = arg3\n\
+  Return value in RAX\n\n\
+Example (x86-64 assembly):\n\
+  mov rax, 16       ; write syscall\n\
+  mov rdi, 1        ; stdout\n\
+  lea rsi, [msg]    ; buffer\n\
+  mov rdx, 5        ; length\n\
+  int 0x80          ; invoke\n";
+
+        if let Err(e) = crate::simplefs::create_file("/docs/syscalls.txt", syscall_ref.as_bytes()) {
+            println!("Warning: Could not create syscalls.txt: {}", e);
+        } else {
+            println!("✓ Created /disk/docs/syscalls.txt");
+        }
+
+        // Create test file
+        let test_data = "This is a test file for trying commands like:\n\
+  cat /disk/tests/test.txt\n\
+  hexdump /disk/tests/test.txt\n\
+  cp /disk/tests/test.txt /disk/tests/backup.txt\n\
+  mv /disk/tests/backup.txt /disk/tests/moved.txt\n\n\
+Feel free to experiment!\n";
+
+        if let Err(e) = crate::simplefs::create_file("/tests/test.txt", test_data.as_bytes()) {
+            println!("Warning: Could not create test.txt: {}", e);
+        } else {
+            println!("✓ Created /disk/tests/test.txt");
+        }
+
+        // Create IPC info file
+        let ipc_info = "MyOS IPC Mechanisms\n\n\
+Available IPC methods:\n\n\
+1. Pipes\n\
+   - Create: syscall 14 (pipe)\n\
+   - Test: pipetest command\n\n\
+2. Shared Memory\n\
+   - Get segment: syscall 18 (shmget)\n\
+   - Attach: syscall 19 (shmat)\n\
+   - Test: shmtest command\n\n\
+3. Semaphores\n\
+   - Initialize: syscall 22 (seminit)\n\
+   - Wait: syscall 24 (semwait)\n\
+   - Post: syscall 25 (sempost)\n\
+   - Test: semtest command\n\n\
+4. Message Queues\n\
+   - Create: syscall 28 (msgget)\n\
+   - Send: syscall 29 (msgsnd)\n\
+   - Receive: syscall 30 (msgrcv)\n\
+   - Test: msgtest command\n";
+
+        if let Err(e) = crate::simplefs::create_file("/docs/ipc.txt", ipc_info.as_bytes()) {
+            println!("Warning: Could not create ipc.txt: {}", e);
+        } else {
+            println!("✓ Created /disk/docs/ipc.txt");
+        }
+
+        println!();
+        println!("✓ Disk initialization complete!");
+        println!();
+        println!("Try these commands:");
+        println!("  ls /disk");
+        println!("  ls /disk/docs");
+        println!("  cat /disk/docs/readme.txt");
+        println!("  hexdump /disk/examples/binary.dat");
     }
 
     // ELF loader command
