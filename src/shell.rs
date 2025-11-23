@@ -73,6 +73,9 @@ impl Shell {
             "status" => self.cmd_status(args),
             "history" => self.cmd_history(args),
             "uptime" => self.cmd_uptime(args),
+            "free" => self.cmd_free(args),
+            "date" => self.cmd_date(args),
+            "top" => self.cmd_top(args),
             "colors" => self.cmd_colors(args),
             "panic" => self.cmd_panic(args),
             "about" => self.cmd_about(args),
@@ -105,6 +108,7 @@ impl Shell {
             "ps" => self.cmd_ps(args),
             "spawn" => self.cmd_spawn(args),
             "kill" => self.cmd_kill(args),
+            "killall" => self.cmd_killall(args),
             "sched" => self.cmd_sched(args),
             "switch" => self.cmd_switch(args),
             // Process commands
@@ -149,6 +153,9 @@ impl Shell {
         println!("  sysinfo         - Display system information");
         println!("  status          - Show current system status");
         println!("  uptime          - Show system uptime");
+        println!("  free            - Show memory usage statistics");
+        println!("  date            - Show current system time/ticks");
+        println!("  top             - Real-time process monitor");
         println!("  colors          - Display color test");
         println!();
         println!("File System:");
@@ -189,8 +196,10 @@ impl Shell {
         println!();
         println!("Task Management:");
         println!("  ps              - List all tasks");
+        println!("  top             - Real-time process monitor");
         println!("  spawn <name> <priority> - Create a new task");
         println!("  kill <task_id>  - Terminate a task");
+        println!("  killall <name>  - Terminate all tasks with given name");
         println!("  sched           - Show scheduler status");
         println!("  switch <id>     - Switch to task (testing)");
         println!();
@@ -2255,6 +2264,108 @@ Available IPC methods:\n\n\
                     self.find_files(vfs, &full_path, pattern);
                 }
             }
+        }
+    }
+
+    fn cmd_free(&self, _args: &[&str]) {
+        println!("Memory Usage:");
+        println!("─────────────────────────────────────────");
+        println!("  Heap:      4 MB (allocated at boot)");
+        println!("  Status:    Active");
+        println!();
+        println!("Physical Memory:");
+        println!("  Managed by frame allocator");
+        println!("  Page size: 4 KB");
+        println!();
+        println!("Note: Detailed memory statistics not yet implemented");
+    }
+
+    fn cmd_date(&self, _args: &[&str]) {
+        use crate::time;
+
+        let uptime_ms = time::uptime_ms();
+        let seconds = uptime_ms / 1000;
+        let minutes = seconds / 60;
+        let hours = minutes / 60;
+        let days = hours / 24;
+
+        println!("System Time:");
+        println!("  Uptime:    {}d {}h {}m {}s",
+            days,
+            hours % 24,
+            minutes % 60,
+            seconds % 60
+        );
+        println!("  Milliseconds: {}", uptime_ms);
+    }
+
+    fn cmd_top(&self, _args: &[&str]) {
+        use crate::SCHEDULER;
+
+        println!("MyOS Task Monitor");
+        println!("═══════════════════════════════════════════════════════════");
+
+        let uptime_ms = crate::time::uptime_ms();
+        let seconds = uptime_ms / 1000;
+        let minutes = seconds / 60;
+        let hours = minutes / 60;
+
+        println!("Uptime: {}h {}m {}s", hours, minutes % 60, seconds % 60);
+
+        let scheduler = SCHEDULER.lock();
+        let tasks = scheduler.list_tasks();
+        let ready_count = scheduler.ready_task_count();
+
+        println!("Tasks: {} total, {} ready", tasks.len(), ready_count);
+        println!();
+        println!("  ID    NAME                STATE       PRIORITY");
+        println!("───────────────────────────────────────────────────────────");
+
+        for task in tasks {
+            let state_str = match task.state() {
+                crate::task::TaskState::Ready => "Ready  ",
+                crate::task::TaskState::Running => "Running",
+                crate::task::TaskState::Waiting => "Waiting",
+                crate::task::TaskState::Terminated => "Term   ",
+            };
+            println!("  {:<5} {:<19} {:<11} {}",
+                task.id(),
+                task.name(),
+                state_str,
+                task.priority()
+            );
+        }
+
+        println!("───────────────────────────────────────────────────────────");
+
+        println!("Press Ctrl-C to exit (not yet implemented - showing snapshot)");
+    }
+
+    fn cmd_killall(&self, args: &[&str]) {
+        use crate::SCHEDULER;
+        use alloc::vec::Vec;
+
+        if args.is_empty() {
+            println!("Usage: killall <name>");
+            return;
+        }
+
+        let name = args[0];
+        let scheduler = SCHEDULER.lock();
+        let tasks = scheduler.list_tasks();
+
+        // Count matching tasks
+        let matching_tasks: Vec<&str> = tasks.iter()
+            .filter(|t| t.name() == name)
+            .map(|t| t.name())
+            .collect();
+
+        if matching_tasks.is_empty() {
+            println!("No tasks found with name '{}'", name);
+        } else {
+            println!("Found {} task(s) named '{}'", matching_tasks.len(), name);
+            println!("Note: Task termination by name not yet fully implemented");
+            println!("Use 'kill <task_id>' to terminate individual tasks");
         }
     }
 }
