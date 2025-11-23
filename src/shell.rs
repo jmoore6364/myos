@@ -76,6 +76,11 @@ impl Shell {
             "free" => self.cmd_free(args),
             "date" => self.cmd_date(args),
             "top" => self.cmd_top(args),
+            "uname" => self.cmd_uname(args),
+            "whoami" => self.cmd_whoami(args),
+            "hostname" => self.cmd_hostname(args),
+            "reboot" => self.cmd_reboot(args),
+            "shutdown" => self.cmd_shutdown(args),
             "colors" => self.cmd_colors(args),
             "panic" => self.cmd_panic(args),
             "about" => self.cmd_about(args),
@@ -102,6 +107,9 @@ impl Shell {
             "head" => self.cmd_head(args),
             "du" => self.cmd_du(args),
             "find" => self.cmd_find(args),
+            "stat" => self.cmd_stat(args),
+            "file" => self.cmd_file(args),
+            "which" => self.cmd_which(args),
             // AI command
             "ai" => self.cmd_ai(args),
             // Task/Scheduler commands
@@ -156,6 +164,11 @@ impl Shell {
         println!("  free            - Show memory usage statistics");
         println!("  date            - Show current system time/ticks");
         println!("  top             - Real-time process monitor");
+        println!("  uname           - Print system information");
+        println!("  whoami          - Print current user");
+        println!("  hostname        - Show system hostname");
+        println!("  reboot          - Reboot the system");
+        println!("  shutdown        - Shutdown the system");
         println!("  colors          - Display color test");
         println!();
         println!("File System:");
@@ -177,6 +190,9 @@ impl Shell {
         println!("  tail <file> [n] - Show last n lines (default 10)");
         println!("  du [path]       - Show disk usage");
         println!("  find <name>     - Find files by name pattern");
+        println!("  stat <file>     - Display file status and information");
+        println!("  file <file>     - Determine file type");
+        println!("  which <cmd>     - Locate a command");
         println!();
         println!("ELF Binaries:");
         println!("  loadelf <file>  - Load and execute an ELF binary from filesystem");
@@ -2366,6 +2382,184 @@ Available IPC methods:\n\n\
             println!("Found {} task(s) named '{}'", matching_tasks.len(), name);
             println!("Note: Task termination by name not yet fully implemented");
             println!("Use 'kill <task_id>' to terminate individual tasks");
+        }
+    }
+
+    fn cmd_uname(&self, args: &[&str]) {
+        let show_all = args.contains(&"-a");
+        let show_kernel = args.contains(&"-s") || args.is_empty();
+        let show_nodename = args.contains(&"-n");
+        let show_release = args.contains(&"-r");
+        let show_version = args.contains(&"-v");
+        let show_machine = args.contains(&"-m");
+
+        if show_all || show_kernel {
+            print!("MyOS ");
+        }
+        if show_all || show_nodename {
+            print!("myos-node ");
+        }
+        if show_all || show_release {
+            print!("0.2.0 ");
+        }
+        if show_all || show_version {
+            print!("#1 ");
+        }
+        if show_all || show_machine {
+            print!("x86_64");
+        }
+        println!();
+    }
+
+    fn cmd_whoami(&self, _args: &[&str]) {
+        println!("root");
+    }
+
+    fn cmd_hostname(&self, _args: &[&str]) {
+        println!("myos-node");
+    }
+
+    fn cmd_reboot(&self, _args: &[&str]) {
+        println!("Reboot requested...");
+        println!("Note: System reboot not yet implemented");
+        println!("In a real system, this would:");
+        println!("  1. Sync filesystems");
+        println!("  2. Send SIGTERM to all processes");
+        println!("  3. Send SIGKILL to remaining processes");
+        println!("  4. Unmount filesystems");
+        println!("  5. Trigger hardware reset via ACPI");
+    }
+
+    fn cmd_shutdown(&self, _args: &[&str]) {
+        println!("Shutdown requested...");
+        println!("Note: System shutdown not yet implemented");
+        println!("In a real system, this would:");
+        println!("  1. Stop accepting new processes");
+        println!("  2. Send SIGTERM to all processes");
+        println!("  3. Send SIGKILL to remaining processes");
+        println!("  4. Sync and unmount all filesystems");
+        println!("  5. Halt the system via ACPI");
+    }
+
+    fn cmd_stat(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.is_empty() {
+            println!("Usage: stat <file>");
+            return;
+        }
+
+        let path = args[0];
+        let vfs = VFS.lock();
+
+        // Try to get file information
+        match vfs.read_file(path) {
+            Ok(content) => {
+                println!("  File: {}", path);
+                println!("  Size: {} bytes", content.len());
+                println!("  Type: Regular file");
+
+                // Calculate some basic stats
+                let lines = content.lines().count();
+                let words = content.split_whitespace().count();
+
+                println!("  Lines: {}", lines);
+                println!("  Words: {}", words);
+
+                // Check if it's likely binary or text
+                let binary_chars = content.bytes()
+                    .filter(|&b| b < 32 && b != b'\n' && b != b'\r' && b != b'\t')
+                    .count();
+                let is_binary = binary_chars > content.len() / 10;
+
+                println!("  Format: {}", if is_binary { "binary" } else { "text" });
+            }
+            Err(_) => {
+                // Might be a directory
+                match vfs.list_directory(path) {
+                    Ok(entries) => {
+                        println!("  File: {}", path);
+                        println!("  Type: Directory");
+                        println!("  Entries: {}", entries.len());
+                    }
+                    Err(e) => {
+                        println!("Error: {}", e);
+                    }
+                }
+            }
+        }
+    }
+
+    fn cmd_file(&self, args: &[&str]) {
+        use crate::vfs::VFS;
+
+        if args.is_empty() {
+            println!("Usage: file <file>");
+            return;
+        }
+
+        let path = args[0];
+        let vfs = VFS.lock();
+
+        match vfs.read_file(path) {
+            Ok(content) => {
+                // Check for common file signatures
+                if content.starts_with("#!/") {
+                    println!("{}: shell script", path);
+                } else if content.starts_with("\x7fELF") {
+                    println!("{}: ELF executable", path);
+                } else if content.starts_with("MZ") {
+                    println!("{}: PE executable", path);
+                } else {
+                    // Check if it's text or binary
+                    let binary_chars = content.bytes()
+                        .filter(|&b| b < 32 && b != b'\n' && b != b'\r' && b != b'\t')
+                        .count();
+                    let is_binary = binary_chars > content.len() / 10;
+
+                    if is_binary {
+                        println!("{}: data", path);
+                    } else {
+                        println!("{}: ASCII text", path);
+                    }
+                }
+            }
+            Err(_) => {
+                // Check if it's a directory
+                if vfs.list_directory(path).is_ok() {
+                    println!("{}: directory", path);
+                } else {
+                    println!("{}: cannot open (No such file or directory)", path);
+                }
+            }
+        }
+    }
+
+    fn cmd_which(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: which <command>");
+            return;
+        }
+
+        let command = args[0];
+
+        // List of built-in commands
+        let builtins = [
+            "help", "clear", "echo", "sysinfo", "status", "history", "uptime",
+            "free", "date", "top", "uname", "whoami", "hostname", "reboot",
+            "shutdown", "colors", "panic", "about", "run", "exec", "app",
+            "examples", "ls", "cd", "pwd", "cat", "hexdump", "mkdir", "touch",
+            "rm", "write", "cp", "mv", "tree", "wc", "grep", "tail", "head",
+            "du", "find", "stat", "file", "which", "ai", "ps", "spawn", "kill",
+            "killall", "sched", "switch", "proc", "pipetest", "shmtest",
+            "semtest", "msgtest", "diskinfo", "diskread", "diskwrite",
+            "fsformat", "fsinfo", "init-disk", "loadelf", "test-usermode",
+        ];
+
+        if builtins.contains(&command) {
+            println!("/builtin/{}", command);
+        } else {
+            println!("{} not found", command);
         }
     }
 }
