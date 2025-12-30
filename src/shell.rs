@@ -124,6 +124,24 @@ impl Shell {
             "logger" => self.cmd_logger(args),
             "calc" => self.cmd_calc(args),
             "printenv" => self.cmd_printenv(args),
+            // Networking commands
+            "ping" => self.cmd_ping(args),
+            "ifconfig" => self.cmd_ifconfig(args),
+            "netstat" => self.cmd_netstat(args),
+            "wget" => self.cmd_wget(args),
+            "curl" => self.cmd_curl(args),
+            // Job control commands
+            "bg" => self.cmd_bg(args),
+            "fg" => self.cmd_fg(args),
+            "jobs" => self.cmd_jobs(args),
+            // Environment management
+            "export" => self.cmd_export(args),
+            "env" => self.cmd_env(args),
+            "set" => self.cmd_set(args),
+            "unset" => self.cmd_unset(args),
+            // Performance utilities
+            "time" => self.cmd_time(args),
+            "benchmark" => self.cmd_benchmark(args),
             // AI command
             "ai" => self.cmd_ai(args),
             // Task/Scheduler commands
@@ -227,6 +245,28 @@ impl Shell {
         println!("  dmesg           - Print kernel messages");
         println!("  logger <msg>    - Add message to system log");
         println!("  printenv        - Print environment info");
+        println!();
+        println!("Networking:");
+        println!("  ping <host>     - Send ICMP echo requests (stub)");
+        println!("  ifconfig        - Configure network interfaces (stub)");
+        println!("  netstat         - Network statistics (stub)");
+        println!("  wget <url>      - Download files from the web (stub)");
+        println!("  curl <url>      - Transfer data from URLs (stub)");
+        println!();
+        println!("Job Control:");
+        println!("  jobs            - List background jobs");
+        println!("  bg [job]        - Resume job in background");
+        println!("  fg [job]        - Bring job to foreground");
+        println!();
+        println!("Environment:");
+        println!("  export VAR=val  - Set environment variable");
+        println!("  env             - Show all environment variables");
+        println!("  set VAR val     - Set shell variable");
+        println!("  unset VAR       - Unset variable");
+        println!();
+        println!("Performance:");
+        println!("  time <cmd>      - Measure command execution time");
+        println!("  benchmark       - Run system benchmarks");
         println!();
         println!("ELF Binaries:");
         println!("  loadelf <file>  - Load and execute an ELF binary from filesystem");
@@ -3026,5 +3066,395 @@ Available IPC methods:\n\n\
 
         let uptime = crate::time::uptime_ms();
         println!("UPTIME={}ms", uptime);
+    }
+
+    // ===== Networking Commands =====
+
+    fn cmd_ping(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: ping <host>");
+            println!();
+            println!("Note: This is an educational stub. A real implementation would:");
+            println!("  1. Resolve the hostname to an IP address via DNS");
+            println!("  2. Send ICMP Echo Request packets");
+            println!("  3. Wait for ICMP Echo Reply packets");
+            println!("  4. Calculate round-trip time (RTT)");
+            println!("  5. Display statistics (packet loss, min/avg/max RTT)");
+            return;
+        }
+
+        let host = args[0];
+        println!("PING {} (192.168.1.1): 56 data bytes", host);
+
+        // Simulate ping responses
+        for seq in 0..4 {
+            let time = 10 + (seq * 3) % 20;
+            println!("64 bytes from {}: icmp_seq={} ttl=64 time={} ms", host, seq, time);
+
+            // Simulate delay (in real OS, would wait for actual response)
+            for _ in 0..1000000 {
+                core::hint::spin_loop();
+            }
+        }
+
+        println!();
+        println!("--- {} ping statistics ---", host);
+        println!("4 packets transmitted, 4 received, 0% packet loss");
+        println!("round-trip min/avg/max = 10/15/19 ms");
+    }
+
+    fn cmd_ifconfig(&self, _args: &[&str]) {
+        println!("Network Interfaces (Educational Stub)");
+        println!("════════════════════════════════════════");
+        println!();
+        println!("eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500");
+        println!("        inet 192.168.1.100  netmask 255.255.255.0  broadcast 192.168.1.255");
+        println!("        inet6 fe80::a00:27ff:fe4e:66a1  prefixlen 64  scopeid 0x20<link>");
+        println!("        ether 08:00:27:4e:66:a1  txqueuelen 1000  (Ethernet)");
+        println!("        RX packets 1234  bytes 123456 (120.5 KiB)");
+        println!("        RX errors 0  dropped 0  overruns 0  frame 0");
+        println!("        TX packets 789  bytes 78901 (77.0 KiB)");
+        println!("        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0");
+        println!();
+        println!("lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536");
+        println!("        inet 127.0.0.1  netmask 255.0.0.0");
+        println!("        inet6 ::1  prefixlen 128  scopeid 0x10<host>");
+        println!("        loop  txqueuelen 1000  (Local Loopback)");
+        println!("        RX packets 100  bytes 10000 (9.7 KiB)");
+        println!("        RX errors 0  dropped 0  overruns 0  frame 0");
+        println!("        TX packets 100  bytes 10000 (9.7 KiB)");
+        println!("        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0");
+        println!();
+        println!("Note: This is educational data. Real implementation would:");
+        println!("  - Query network interface hardware");
+        println!("  - Read IP configuration from DHCP or static config");
+        println!("  - Support setting IP addresses, netmasks, and routes");
+    }
+
+    fn cmd_netstat(&self, _args: &[&str]) {
+        println!("Network Statistics (Educational Stub)");
+        println!("════════════════════════════════════════");
+        println!();
+        println!("Active Internet connections (servers and established)");
+        println!("Proto Recv-Q Send-Q Local Address           Foreign Address         State");
+        println!("tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN");
+        println!("tcp        0      0 127.0.0.1:631           0.0.0.0:*               LISTEN");
+        println!("tcp        0      0 192.168.1.100:22        192.168.1.50:54321      ESTABLISHED");
+        println!("tcp6       0      0 :::80                   :::*                    LISTEN");
+        println!("udp        0      0 0.0.0.0:68              0.0.0.0:*");
+        println!("udp        0      0 0.0.0.0:631             0.0.0.0:*");
+        println!();
+        println!("Active UNIX domain sockets (servers and established)");
+        println!("Proto RefCnt Flags       Type       State         I-Node   Path");
+        println!("unix  2      [ ACC ]     STREAM     LISTENING     12345    /tmp/socket1");
+        println!("unix  3      [ ]         STREAM     CONNECTED     12346    /var/run/dbus");
+        println!();
+        println!("Note: Real implementation would query the network stack for:");
+        println!("  - TCP/UDP socket states and connections");
+        println!("  - Routing tables");
+        println!("  - Interface statistics");
+        println!("  - Multicast memberships");
+    }
+
+    fn cmd_wget(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: wget <url>");
+            println!();
+            println!("Note: This is an educational stub. A real implementation would:");
+            println!("  1. Parse the URL (protocol, host, port, path)");
+            println!("  2. Resolve DNS for the hostname");
+            println!("  3. Establish TCP connection");
+            println!("  4. Send HTTP GET request");
+            println!("  5. Receive HTTP response headers and body");
+            println!("  6. Save content to a file");
+            println!("  7. Support HTTPS, redirects, resume, authentication");
+            return;
+        }
+
+        let url = args[0];
+        println!("--{}--  Resolving {} (example.com)...", crate::time::uptime_ms(), url);
+        println!("Connecting to example.com|93.184.216.34|:80... connected.");
+        println!("HTTP request sent, awaiting response... 200 OK");
+        println!("Length: 1256 (1.2K) [text/html]");
+        println!("Saving to: 'index.html'");
+        println!();
+        println!("index.html          100%[===================>]   1.23K  --.-KB/s    in 0.001s");
+        println!();
+        println!("{}  (1.23 MB/s) - 'index.html' saved [1256/1256]", crate::time::uptime_ms());
+        println!();
+        println!("Note: File not actually downloaded - this is a simulation");
+    }
+
+    fn cmd_curl(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: curl <url>");
+            println!("       curl -o <file> <url>  (save to file)");
+            println!();
+            println!("Note: This is an educational stub. A real implementation would:");
+            println!("  1. Support multiple protocols (HTTP, HTTPS, FTP, etc.)");
+            println!("  2. Handle various HTTP methods (GET, POST, PUT, DELETE)");
+            println!("  3. Support headers, cookies, authentication");
+            println!("  4. Follow redirects");
+            println!("  5. Upload and download files");
+            println!("  6. Support SSL/TLS");
+            return;
+        }
+
+        let url = args[args.len() - 1];
+        let output = if args.len() > 2 && args[0] == "-o" {
+            Some(args[1])
+        } else {
+            None
+        };
+
+        println!("  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current");
+        println!("                                 Dload  Upload   Total   Spent    Left  Speed");
+        println!("100  1256  100  1256    0     0  10234      0 --:--:-- --:--:-- --:--:-- 10300");
+        println!();
+
+        if let Some(file) = output {
+            println!("Output saved to '{}'", file);
+            println!();
+            println!("Note: File not actually created - this is a simulation");
+        } else {
+            println!("<!DOCTYPE html>");
+            println!("<html>");
+            println!("<head><title>Example Domain</title></head>");
+            println!("<body>");
+            println!("<h1>Example Domain</h1>");
+            println!("<p>This domain is for use in illustrative examples.</p>");
+            println!("</body>");
+            println!("</html>");
+            println!();
+            println!("Note: This is simulated output from {}", url);
+        }
+    }
+
+    // ===== Job Control Commands =====
+
+    fn cmd_jobs(&self, _args: &[&str]) {
+        println!("Background Jobs (Educational Stub)");
+        println!("════════════════════════════════════════");
+        println!("[1]   Running                 long_task &");
+        println!("[2]-  Stopped                 vim file.txt");
+        println!("[3]+  Running                 ./build.sh &");
+        println!();
+        println!("Note: Real job control would:");
+        println!("  - Track background processes started with &");
+        println!("  - Track suspended processes (Ctrl+Z)");
+        println!("  - Show job states (Running, Stopped, Done)");
+        println!("  - Support job IDs and process group IDs");
+    }
+
+    fn cmd_bg(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: bg [job_id]");
+            println!();
+            println!("Resume the most recent stopped job in the background");
+            println!();
+            println!("Note: Real implementation would:");
+            println!("  1. Find the stopped job (by ID or most recent)");
+            println!("  2. Send SIGCONT signal to resume execution");
+            println!("  3. Mark job as running in background");
+            println!("  4. Return control to shell immediately");
+            return;
+        }
+
+        let job_id = args[0];
+        println!("[{}] continued in background", job_id);
+        println!();
+        println!("Note: This is a simulation - no actual job resumed");
+    }
+
+    fn cmd_fg(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: fg [job_id]");
+            println!();
+            println!("Bring the most recent background job to foreground");
+            println!();
+            println!("Note: Real implementation would:");
+            println!("  1. Find the background job (by ID or most recent)");
+            println!("  2. Move job to foreground process group");
+            println!("  3. Send SIGCONT if stopped");
+            println!("  4. Wait for job to complete or be suspended");
+            println!("  5. Handle terminal control properly");
+            return;
+        }
+
+        let job_id = args[0];
+        println!("[{}] brought to foreground", job_id);
+        println!();
+        println!("Note: This is a simulation - no actual job foregrounded");
+    }
+
+    // ===== Environment Management =====
+
+    fn cmd_export(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: export VAR=value");
+            println!("       export VAR=\"value with spaces\"");
+            println!();
+            println!("Note: Real implementation would:");
+            println!("  1. Parse variable name and value");
+            println!("  2. Store in environment table");
+            println!("  3. Make variable available to child processes");
+            println!("  4. Support variable expansion ($VAR)");
+            return;
+        }
+
+        let assignment = args.join(" ");
+        if assignment.contains('=') {
+            let parts: Vec<&str> = assignment.splitn(2, '=').collect();
+            println!("Exported: {}={}", parts[0], parts[1]);
+            println!();
+            println!("Note: This is a simulation - variable not actually set");
+        } else {
+            println!("Error: Invalid format. Use: export VAR=value");
+        }
+    }
+
+    fn cmd_env(&self, _args: &[&str]) {
+        // Same as printenv
+        self.cmd_printenv(&[]);
+    }
+
+    fn cmd_set(&self, args: &[&str]) {
+        if args.len() < 2 {
+            println!("Usage: set VAR value");
+            println!("       set                (show all variables)");
+            println!();
+            println!("Note: Real implementation would:");
+            println!("  1. Set shell-local variables (not exported to children)");
+            println!("  2. Display all variables when called without args");
+            println!("  3. Support special shell variables (PS1, IFS, etc.)");
+            return;
+        }
+
+        let var_name = args[0];
+        let value = args[1..].join(" ");
+        println!("Set: {}={}", var_name, value);
+        println!();
+        println!("Note: This is a simulation - variable not actually set");
+    }
+
+    fn cmd_unset(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: unset VAR");
+            println!();
+            println!("Remove a shell or environment variable");
+            println!();
+            println!("Note: Real implementation would:");
+            println!("  1. Remove variable from environment table");
+            println!("  2. Remove from both local and exported variables");
+            println!("  3. Handle special variables appropriately");
+            return;
+        }
+
+        let var_name = args[0];
+        println!("Unset: {}", var_name);
+        println!();
+        println!("Note: This is a simulation - variable not actually removed");
+    }
+
+    // ===== Performance Utilities =====
+
+    fn cmd_time(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: time <command> [args...]");
+            println!();
+            println!("Measure the execution time of a command");
+            println!();
+            println!("Note: Real implementation would:");
+            println!("  1. Record start time (real, user, sys)");
+            println!("  2. Execute the command");
+            println!("  3. Record end time");
+            println!("  4. Calculate and display:");
+            println!("     - Real time (wall clock)");
+            println!("     - User time (CPU in user mode)");
+            println!("     - System time (CPU in kernel mode)");
+            return;
+        }
+
+        let command = args[0];
+        let start = crate::time::uptime_ms();
+
+        println!("Executing: {}...", args.join(" "));
+        println!();
+
+        // Simulate some work
+        for _ in 0..5000000 {
+            core::hint::spin_loop();
+        }
+
+        let end = crate::time::uptime_ms();
+        let elapsed = end - start;
+
+        println!();
+        println!("real    0m{}.{:03}s", elapsed / 1000, elapsed % 1000);
+        println!("user    0m{}.{:03}s", (elapsed * 8) / 10000, ((elapsed * 8) / 10) % 1000);
+        println!("sys     0m{}.{:03}s", (elapsed * 2) / 10000, ((elapsed * 2) / 10) % 1000);
+        println!();
+        println!("Note: Command '{}' not actually executed - this is a simulation", command);
+    }
+
+    fn cmd_benchmark(&self, _args: &[&str]) {
+        println!("MyOS System Benchmark");
+        println!("════════════════════════════════════════");
+        println!();
+
+        // CPU benchmark
+        println!("[1/4] CPU Integer Math...");
+        let start = crate::time::uptime_ms();
+        let mut sum: i64 = 0;
+        for i in 0..1000000 {
+            sum = sum.wrapping_add(i);
+        }
+        let cpu_int_time = crate::time::uptime_ms() - start;
+        println!("      Completed in {}ms (result: {})", cpu_int_time, sum);
+
+        // Memory benchmark
+        println!("[2/4] Memory Allocation...");
+        let start = crate::time::uptime_ms();
+        let mut vectors: Vec<Vec<u8>> = Vec::new();
+        for i in 0..100 {
+            let mut v = Vec::new();
+            v.resize(1000, i as u8);
+            vectors.push(v);
+        }
+        let mem_time = crate::time::uptime_ms() - start;
+        println!("      Completed in {}ms ({} allocations)", mem_time, vectors.len());
+
+        // String operations
+        println!("[3/4] String Operations...");
+        let start = crate::time::uptime_ms();
+        let mut s = alloc::string::String::new();
+        for i in 0..1000 {
+            s.push_str(&format!("test{}", i));
+        }
+        let str_time = crate::time::uptime_ms() - start;
+        println!("      Completed in {}ms ({} chars)", str_time, s.len());
+
+        // Spin delay
+        println!("[4/4] Timing Accuracy...");
+        let start = crate::time::uptime_ms();
+        for _ in 0..1000000 {
+            core::hint::spin_loop();
+        }
+        let spin_time = crate::time::uptime_ms() - start;
+        println!("      Completed in {}ms", spin_time);
+
+        println!();
+        println!("════════════════════════════════════════");
+        println!("Benchmark Summary:");
+        println!("  CPU (int):     {}ms", cpu_int_time);
+        println!("  Memory:        {}ms", mem_time);
+        println!("  Strings:       {}ms", str_time);
+        println!("  Spin delay:    {}ms", spin_time);
+        println!("  Total:         {}ms", cpu_int_time + mem_time + str_time + spin_time);
+        println!();
+
+        let total = cpu_int_time + mem_time + str_time + spin_time;
+        let score = if total > 0 { 100000 / total } else { 0 };
+        println!("Performance Score: {}/100", score.min(100));
     }
 }
