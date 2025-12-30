@@ -142,6 +142,29 @@ impl Shell {
             // Performance utilities
             "time" => self.cmd_time(args),
             "benchmark" => self.cmd_benchmark(args),
+            // Text editors
+            "nano" => self.cmd_nano(args),
+            "vi" => self.cmd_vi(args),
+            "sed" => self.cmd_sed(args),
+            "awk" => self.cmd_awk(args),
+            // System administration
+            "useradd" => self.cmd_useradd(args),
+            "userdel" => self.cmd_userdel(args),
+            "passwd" => self.cmd_passwd(args),
+            "su" => self.cmd_su(args),
+            "sudo" => self.cmd_sudo(args),
+            "crontab" => self.cmd_crontab(args),
+            // Compression utilities
+            "gzip" => self.cmd_gzip(args),
+            "gunzip" => self.cmd_gunzip(args),
+            "bzip2" => self.cmd_bzip2(args),
+            "bunzip2" => self.cmd_bunzip2(args),
+            "xz" => self.cmd_xz(args),
+            "unxz" => self.cmd_unxz(args),
+            // Search and indexing
+            "locate" => self.cmd_locate(args),
+            "updatedb" => self.cmd_updatedb(args),
+            "whereis" => self.cmd_whereis(args),
             // AI command
             "ai" => self.cmd_ai(args),
             // Task/Scheduler commands
@@ -267,6 +290,33 @@ impl Shell {
         println!("Performance:");
         println!("  time <cmd>      - Measure command execution time");
         println!("  benchmark       - Run system benchmarks");
+        println!();
+        println!("Text Editors:");
+        println!("  nano <file>     - Simple text editor (stub)");
+        println!("  vi <file>       - Vi text editor (stub)");
+        println!("  sed <expr> <f>  - Stream editor (stub)");
+        println!("  awk <prog> <f>  - Pattern scanning and processing (stub)");
+        println!();
+        println!("System Administration:");
+        println!("  useradd <user>  - Create new user account (stub)");
+        println!("  userdel <user>  - Delete user account (stub)");
+        println!("  passwd [user]   - Change user password (stub)");
+        println!("  su [user]       - Switch user (stub)");
+        println!("  sudo <cmd>      - Execute command as superuser (stub)");
+        println!("  crontab [-l|-e] - Manage scheduled tasks (stub)");
+        println!();
+        println!("Compression:");
+        println!("  gzip <file>     - Compress with gzip (stub)");
+        println!("  gunzip <file>   - Decompress gzip files (stub)");
+        println!("  bzip2 <file>    - Compress with bzip2 (stub)");
+        println!("  bunzip2 <file>  - Decompress bzip2 files (stub)");
+        println!("  xz <file>       - Compress with xz (stub)");
+        println!("  unxz <file>     - Decompress xz files (stub)");
+        println!();
+        println!("Search & Indexing:");
+        println!("  locate <name>   - Find files by name (stub)");
+        println!("  updatedb        - Update file database (stub)");
+        println!("  whereis <cmd>   - Locate binary, source, and manual (stub)");
         println!();
         println!("ELF Binaries:");
         println!("  loadelf <file>  - Load and execute an ELF binary from filesystem");
@@ -3456,5 +3506,467 @@ Available IPC methods:\n\n\
         let total = cpu_int_time + mem_time + str_time + spin_time;
         let score = if total > 0 { 100000 / total } else { 0 };
         println!("Performance Score: {}/100", score.min(100));
+    }
+
+    // ===== Text Editors =====
+
+    fn cmd_nano(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: nano <file>");
+            println!();
+            println!("Note: This is an educational stub. A real text editor would:");
+            println!("  1. Open file or create new buffer");
+            println!("  2. Display file contents in editable form");
+            println!("  3. Handle keyboard input (arrows, insert, delete)");
+            println!("  4. Support editing operations (cut, paste, search)");
+            println!("  5. Save changes to disk");
+            println!("  6. Handle large files with buffering");
+            return;
+        }
+
+        let file = args[0];
+        println!("GNU nano 5.0                    {}", file);
+        println!();
+        println!("[ File content would appear here ]");
+        println!("[ User could edit text with cursor keys ]");
+        println!("[ Ctrl+X to exit, Ctrl+O to save ]");
+        println!();
+        println!("^G Help    ^O Write   ^W Where Is  ^K Cut     ^T Execute");
+        println!("^X Exit    ^R Read    ^\\Replace   ^U Paste   ^J Justify");
+        println!();
+        println!("Note: This is a simulation - no actual editing available");
+    }
+
+    fn cmd_vi(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: vi <file>");
+            println!();
+            println!("Note: This is an educational stub. Vi/Vim would:");
+            println!("  1. Start in command mode");
+            println!("  2. Support modal editing (normal, insert, visual)");
+            println!("  3. Provide powerful commands (dd, yy, p, u, etc.)");
+            println!("  4. Handle complex text manipulation");
+            println!("  5. Support macros and scripting");
+            return;
+        }
+
+        let file = args[0];
+        println!("Opening {} in vi...", file);
+        println!();
+        println!("~");
+        println!("~                        [ File content here ]");
+        println!("~");
+        println!("~                        [ i - insert mode ]");
+        println!("~                        [ :wq - save and quit ]");
+        println!("~                        [ :q! - quit without saving ]");
+        println!("~");
+        println!("\"{}\" [New File]", file);
+        println!();
+        println!("Note: This is a simulation - use nano or cat/write for editing");
+    }
+
+    fn cmd_sed(&self, args: &[&str]) {
+        if args.len() < 2 {
+            println!("Usage: sed <expression> <file>");
+            println!("       sed 's/old/new/' file.txt");
+            println!("       sed '/pattern/d' file.txt");
+            println!();
+            println!("Note: This is an educational stub. Real sed would:");
+            println!("  1. Parse sed expressions (s/find/replace/, d, p, etc.)");
+            println!("  2. Process input line by line");
+            println!("  3. Apply transformations");
+            println!("  4. Support regular expressions");
+            println!("  5. Handle complex multi-line patterns");
+            println!("  6. Support in-place editing with -i flag");
+            return;
+        }
+
+        let expr = args[0];
+        let file = args[1];
+        println!("Processing {} with expression '{}'...", file, expr);
+        println!();
+        println!("Note: Real sed would apply the transformation and output results");
+        println!("      Common patterns:");
+        println!("        s/foo/bar/    - Replace first occurrence");
+        println!("        s/foo/bar/g   - Replace all occurrences");
+        println!("        /pattern/d    - Delete matching lines");
+        println!("        /pattern/p    - Print matching lines");
+    }
+
+    fn cmd_awk(&self, args: &[&str]) {
+        if args.len() < 2 {
+            println!("Usage: awk '<program>' <file>");
+            println!("       awk '{{print $1}}' file.txt");
+            println!("       awk '/pattern/ {{print $0}}' file.txt");
+            println!();
+            println!("Note: This is an educational stub. Real awk would:");
+            println!("  1. Parse awk program (patterns and actions)");
+            println!("  2. Split input into records and fields");
+            println!("  3. Execute pattern matching");
+            println!("  4. Perform field operations");
+            println!("  5. Support variables and expressions");
+            println!("  6. Handle BEGIN/END blocks");
+            return;
+        }
+
+        let program = args[0];
+        let file = args[1];
+        println!("Processing {} with awk program '{}'...", file, program);
+        println!();
+        println!("Note: Real awk is a full programming language for text processing");
+        println!("      Common patterns:");
+        println!("        {{print $1}}           - Print first field");
+        println!("        {{print $1, $3}}       - Print fields 1 and 3");
+        println!("        /pattern/ {{print}}    - Print matching lines");
+        println!("        NR > 10 {{print}}      - Print lines after 10th");
+    }
+
+    // ===== System Administration =====
+
+    fn cmd_useradd(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: useradd <username>");
+            println!("       useradd -m -s /bin/bash <username>");
+            println!();
+            println!("Note: This is an educational stub. Real useradd would:");
+            println!("  1. Create new user account in /etc/passwd");
+            println!("  2. Create home directory (-m flag)");
+            println!("  3. Set default shell (-s flag)");
+            println!("  4. Create user group");
+            println!("  5. Set initial password (locked)");
+            println!("  6. Copy skeleton files to home directory");
+            return;
+        }
+
+        let username = args[0];
+        println!("Creating user account: {}", username);
+        println!("  UID: 1001");
+        println!("  GID: 1001");
+        println!("  Home: /home/{}", username);
+        println!("  Shell: /bin/bash");
+        println!();
+        println!("Note: This is a simulation - no account actually created");
+    }
+
+    fn cmd_userdel(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: userdel <username>");
+            println!("       userdel -r <username>  (remove home directory)");
+            println!();
+            println!("Note: This is an educational stub. Real userdel would:");
+            println!("  1. Remove user from /etc/passwd");
+            println!("  2. Remove user from all groups");
+            println!("  3. Optionally remove home directory (-r)");
+            println!("  4. Kill all user processes");
+            println!("  5. Remove mail spool");
+            return;
+        }
+
+        let username = args[0];
+        println!("Removing user account: {}", username);
+        println!();
+        println!("Note: This is a simulation - no account actually removed");
+    }
+
+    fn cmd_passwd(&self, args: &[&str]) {
+        let user = if args.is_empty() {
+            "root"
+        } else {
+            args[0]
+        };
+
+        println!("Changing password for user: {}", user);
+        println!();
+        println!("Note: This is an educational stub. Real passwd would:");
+        println!("  1. Prompt for current password (if not root)");
+        println!("  2. Prompt for new password");
+        println!("  3. Prompt for confirmation");
+        println!("  4. Check password strength");
+        println!("  5. Hash password with strong algorithm (bcrypt, scrypt)");
+        println!("  6. Update /etc/shadow");
+        println!();
+        println!("New password: ********");
+        println!("Retype new password: ********");
+        println!("passwd: password updated successfully");
+        println!();
+        println!("Note: This is a simulation - no password actually changed");
+    }
+
+    fn cmd_su(&self, args: &[&str]) {
+        let target_user = if args.is_empty() {
+            "root"
+        } else {
+            args[0]
+        };
+
+        println!("Switching to user: {}", target_user);
+        println!();
+        println!("Note: This is an educational stub. Real su would:");
+        println!("  1. Prompt for target user's password");
+        println!("  2. Authenticate credentials");
+        println!("  3. Change effective UID/GID");
+        println!("  4. Set environment variables");
+        println!("  5. Execute user's shell");
+        println!("  6. Return to original user on exit");
+        println!();
+        println!("Password: ********");
+        println!();
+        println!("Note: This is a simulation - staying as current user");
+    }
+
+    fn cmd_sudo(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: sudo <command>");
+            println!();
+            println!("Note: This is an educational stub. Real sudo would:");
+            println!("  1. Check /etc/sudoers for permissions");
+            println!("  2. Prompt for user's password (not root's)");
+            println!("  3. Validate credentials");
+            println!("  4. Execute command with elevated privileges");
+            println!("  5. Log command execution");
+            println!("  6. Cache credentials for timeout period");
+            return;
+        }
+
+        let command = args.join(" ");
+        println!("[sudo] password for root: ********");
+        println!();
+        println!("Executing with elevated privileges: {}", command);
+        println!();
+        println!("Note: This is a simulation - command not actually executed");
+    }
+
+    fn cmd_crontab(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: crontab -l          (list cron jobs)");
+            println!("       crontab -e          (edit cron jobs)");
+            println!("       crontab -r          (remove all jobs)");
+            println!();
+            println!("Note: This is an educational stub. Real crontab would:");
+            println!("  1. Manage per-user cron job schedules");
+            println!("  2. Parse cron time specifications");
+            println!("  3. Execute jobs at scheduled times");
+            println!("  4. Send output via email");
+            println!("  5. Handle environment variables");
+            return;
+        }
+
+        match args[0] {
+            "-l" => {
+                println!("Cron jobs for root:");
+                println!();
+                println!("# m h  dom mon dow   command");
+                println!("0 2 * * * /usr/bin/backup.sh");
+                println!("*/15 * * * * /usr/bin/check-system.sh");
+                println!("0 0 1 * * /usr/bin/monthly-cleanup.sh");
+                println!();
+                println!("Note: This is simulated data");
+            }
+            "-e" => {
+                println!("Opening crontab editor...");
+                println!();
+                println!("Note: Use 'crontab -l' to view jobs");
+                println!("      Cron format: minute hour day month weekday command");
+            }
+            "-r" => {
+                println!("Removing all cron jobs for root");
+                println!();
+                println!("Note: This is a simulation");
+            }
+            _ => {
+                println!("Invalid option: {}", args[0]);
+                println!("Use: crontab -l, -e, or -r");
+            }
+        }
+    }
+
+    // ===== Compression Utilities =====
+
+    fn cmd_gzip(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: gzip <file>");
+            println!("       gzip -d <file>  (decompress)");
+            println!();
+            println!("Note: This is an educational stub. Real gzip would:");
+            println!("  1. Read input file");
+            println!("  2. Apply DEFLATE compression algorithm");
+            println!("  3. Write .gz compressed file");
+            println!("  4. Remove original file");
+            println!("  5. Preserve file permissions and timestamps");
+            return;
+        }
+
+        let file = args[0];
+        println!("Compressing {} with gzip...", file);
+        println!();
+        println!("{}: 65.2% -- replaced with {}.gz", file, file);
+        println!();
+        println!("Note: This is a simulation - no actual compression performed");
+    }
+
+    fn cmd_gunzip(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: gunzip <file.gz>");
+            println!();
+            println!("Note: This is an educational stub. Real gunzip would:");
+            println!("  1. Read .gz compressed file");
+            println!("  2. Apply DEFLATE decompression");
+            println!("  3. Write decompressed file");
+            println!("  4. Remove .gz file");
+            println!("  5. Restore original permissions");
+            return;
+        }
+
+        let file = args[0];
+        let original = file.strip_suffix(".gz").unwrap_or(file);
+        println!("Decompressing {}...", file);
+        println!();
+        println!("{}: OK -- replaced with {}", file, original);
+        println!();
+        println!("Note: This is a simulation - no actual decompression performed");
+    }
+
+    fn cmd_bzip2(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: bzip2 <file>");
+            println!();
+            println!("Note: This is an educational stub. Real bzip2 would:");
+            println!("  1. Use Burrows-Wheeler transform");
+            println!("  2. Apply run-length encoding");
+            println!("  3. Use Huffman coding");
+            println!("  4. Better compression than gzip (slower)");
+            println!("  5. Create .bz2 file");
+            return;
+        }
+
+        let file = args[0];
+        println!("Compressing {} with bzip2...", file);
+        println!();
+        println!("  {}: 3.141:1, 2.548 bits/byte, 68.16% saved", file);
+        println!();
+        println!("Note: This is a simulation - no actual compression performed");
+    }
+
+    fn cmd_bunzip2(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: bunzip2 <file.bz2>");
+            println!();
+            println!("Note: Decompresses bzip2 compressed files");
+            return;
+        }
+
+        let file = args[0];
+        let original = file.strip_suffix(".bz2").unwrap_or(file);
+        println!("Decompressing {}...", file);
+        println!();
+        println!("{}: done", file);
+        println!("Output: {}", original);
+        println!();
+        println!("Note: This is a simulation - no actual decompression performed");
+    }
+
+    fn cmd_xz(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: xz <file>");
+            println!();
+            println!("Note: This is an educational stub. Real xz would:");
+            println!("  1. Use LZMA2 compression algorithm");
+            println!("  2. Provide best compression ratio");
+            println!("  3. Slowest but smallest output");
+            println!("  4. Create .xz file");
+            println!("  5. Support multi-threading");
+            return;
+        }
+
+        let file = args[0];
+        println!("Compressing {} with xz...", file);
+        println!();
+        println!("{}: 74.5 % -- replaced with {}.xz", file, file);
+        println!();
+        println!("Note: This is a simulation - no actual compression performed");
+    }
+
+    fn cmd_unxz(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: unxz <file.xz>");
+            println!();
+            println!("Note: Decompresses xz compressed files");
+            return;
+        }
+
+        let file = args[0];
+        let original = file.strip_suffix(".xz").unwrap_or(file);
+        println!("Decompressing {}...", file);
+        println!();
+        println!("{}: done -- replaced with {}", file, original);
+        println!();
+        println!("Note: This is a simulation - no actual decompression performed");
+    }
+
+    // ===== Search and Indexing =====
+
+    fn cmd_locate(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: locate <pattern>");
+            println!();
+            println!("Note: This is an educational stub. Real locate would:");
+            println!("  1. Search pre-built file database");
+            println!("  2. Support pattern matching");
+            println!("  3. Very fast (indexed search)");
+            println!("  4. Updated by updatedb command");
+            println!("  5. Search entire filesystem");
+            return;
+        }
+
+        let pattern = args[0];
+        println!("Searching for files matching '{}'...", pattern);
+        println!();
+        println!("/bin/{}", pattern);
+        println!("/usr/bin/{}", pattern);
+        println!("/usr/local/bin/{}", pattern);
+        println!("/home/user/projects/{}/README.md", pattern);
+        println!("/opt/{}/config.conf", pattern);
+        println!();
+        println!("Note: This is simulated data - use 'find' for real searching");
+    }
+
+    fn cmd_updatedb(&self, _args: &[&str]) {
+        println!("Updating file database...");
+        println!();
+        println!("Note: This is an educational stub. Real updatedb would:");
+        println!("  1. Scan entire filesystem");
+        println!("  2. Build searchable index database");
+        println!("  3. Store in /var/lib/mlocate/mlocate.db");
+        println!("  4. Skip certain directories (.git, /proc, /sys)");
+        println!("  5. Run periodically via cron");
+        println!();
+        println!("Scanning filesystem...");
+        println!("  /: 1234 files");
+        println!("  /usr: 5678 files");
+        println!("  /home: 2345 files");
+        println!("  /var: 890 files");
+        println!();
+        println!("Database updated: 10147 files indexed");
+        println!();
+        println!("Note: This is a simulation - no database actually created");
+    }
+
+    fn cmd_whereis(&self, args: &[&str]) {
+        if args.is_empty() {
+            println!("Usage: whereis <command>");
+            println!();
+            println!("Note: This is an educational stub. Real whereis would:");
+            println!("  1. Locate binary executables");
+            println!("  2. Locate source files");
+            println!("  3. Locate manual pages");
+            println!("  4. Search standard paths");
+            return;
+        }
+
+        let command = args[0];
+        println!("{}: /bin/{} /usr/bin/{} /usr/share/man/man1/{}.1",
+                 command, command, command, command);
+        println!();
+        println!("Note: This is simulated data showing typical locations");
     }
 }
