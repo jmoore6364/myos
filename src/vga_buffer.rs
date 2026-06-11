@@ -142,6 +142,9 @@ pub fn _print(args: fmt::Arguments) {
     use x86_64::instructions::interrupts;
 
     interrupts::without_interrupts(|| {
+        // Output to VGA
         crate::vga_buffer::WRITER.lock().write_fmt(args).unwrap();
+        // Also output to serial for -nographic mode
+        crate::serial::SERIAL1.lock().write_fmt(args).unwrap();
     });
 }
