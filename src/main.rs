@@ -162,6 +162,10 @@ fn test_user_mode() {
 /// Entry point for the kernel
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &'static mut bootloader::BootInfo) -> ! {
+    // Test serial output first
+    serial_println!("MyOS: Serial output test - kernel started!");
+    serial_println!("MyOS: If you see this, serial is working!");
+
     println!("╔════════════════════════════════════════════╗");
     println!("║          MyOS v0.1.0 - Booting...         ║");
     println!("╚════════════════════════════════════════════╝");
