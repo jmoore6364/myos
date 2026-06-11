@@ -174,11 +174,11 @@ rustup component add rust-src llvm-tools-preview
 rustup target add x86_64-unknown-none
 ```
 
-#### Step 3: Install QEMU
+#### Step 3: Install Dependencies
 
 ```bash
 sudo apt update
-sudo apt install qemu-system-x86
+sudo apt install qemu-system-x86 build-essential
 ```
 
 #### Step 4: Install Bootimage
