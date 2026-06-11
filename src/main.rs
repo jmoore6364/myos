@@ -202,6 +202,15 @@ pub extern "C" fn _start(boot_info: &'static mut bootloader::BootInfo) -> ! {
     } else {
         if let Some(mac) = drivers::e1000::get_mac_address() {
             println!("  ✓ Network card initialized - MAC: {}", mac);
+
+            // Auto-configure network (QEMU default network)
+            let ip = net::ipv4::Ipv4Addr::new(10, 0, 2, 15);      // QEMU guest IP
+            let netmask = net::ipv4::Ipv4Addr::new(255, 255, 255, 0);
+            let gateway = net::ipv4::Ipv4Addr::new(10, 0, 2, 2);   // QEMU gateway
+
+            net::config::configure(ip, netmask, gateway, mac);
+            println!("  ✓ Network auto-configured for QEMU");
+            println!("    IP: {} Gateway: {}", ip, gateway);
         }
     }
 

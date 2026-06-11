@@ -3122,63 +3122,148 @@ Available IPC methods:\n\n\
 
     fn cmd_ping(&self, args: &[&str]) {
         if args.is_empty() {
-            println!("Usage: ping <host>");
-            println!();
-            println!("Note: This is an educational stub. A real implementation would:");
-            println!("  1. Resolve the hostname to an IP address via DNS");
-            println!("  2. Send ICMP Echo Request packets");
-            println!("  3. Wait for ICMP Echo Reply packets");
-            println!("  4. Calculate round-trip time (RTT)");
-            println!("  5. Display statistics (packet loss, min/avg/max RTT)");
+            println!("Usage: ping <host|ip>");
+            println!("Examples:");
+            println!("  ping 192.168.1.1");
+            println!("  ping 8.8.8.8");
+            println!("  ping google.com  (uses static DNS)");
             return;
         }
 
         let host = args[0];
-        println!("PING {} (192.168.1.1): 56 data bytes", host);
 
-        // Simulate ping responses
-        for seq in 0..4 {
-            let time = 10 + (seq * 3) % 20;
-            println!("64 bytes from {}: icmp_seq={} ttl=64 time={} ms", host, seq, time);
+        // Try to parse as IP address
+        let dest_ip = if let Ok(bytes) = host.split('.').map(|s| s.parse::<u8>()).collect::<Result<alloc::vec::Vec<u8>, _>>() {
+            if bytes.len() == 4 {
+                crate::net::ipv4::Ipv4Addr::new(bytes[0], bytes[1], bytes[2], bytes[3])
+            } else {
+                println!("Error: Invalid IP address format");
+                return;
+            }
+        } else {
+            // Try DNS resolution (static for now)
+            match crate::net::dns::resolve_static(host) {
+                Some(ip) => {
+                    println!("Resolved {} to {}", host, ip);
+                    ip
+                }
+                None => {
+                    println!("Error: Cannot resolve hostname '{}'", host);
+                    println!("Static DNS entries: localhost, router, google.com, example.com");
+                    return;
+                }
+            }
+        };
 
-            // Simulate delay (in real OS, would wait for actual response)
-            for _ in 0..1000000 {
-                core::hint::spin_loop();
+        // Send 4 pings
+        let identifier = 1234u16; // Could use process ID
+        for seq in 1..=4 {
+            // Send ping
+            crate::net::handler::send_ping(dest_ip, identifier, seq);
+
+            // Wait a bit and poll for response
+            for _ in 0..100 {
+                crate::net::handler::poll_rx();
+
+                // Small delay
+                for _ in 0..100000 {
+                    core::hint::spin_loop();
+                }
             }
         }
 
         println!();
-        println!("--- {} ping statistics ---", host);
-        println!("4 packets transmitted, 4 received, 0% packet loss");
-        println!("round-trip min/avg/max = 10/15/19 ms");
+        println!("--- {} ping statistics ---", dest_ip);
+        println!("4 packets transmitted");
+        println!();
+        println!("Note: Reply statistics tracking coming soon!");
+        println!("      Check the output above for actual ping replies.");
     }
 
-    fn cmd_ifconfig(&self, _args: &[&str]) {
-        println!("Network Interfaces (Educational Stub)");
-        println!("════════════════════════════════════════");
-        println!();
-        println!("eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500");
-        println!("        inet 192.168.1.100  netmask 255.255.255.0  broadcast 192.168.1.255");
-        println!("        inet6 fe80::a00:27ff:fe4e:66a1  prefixlen 64  scopeid 0x20<link>");
-        println!("        ether 08:00:27:4e:66:a1  txqueuelen 1000  (Ethernet)");
-        println!("        RX packets 1234  bytes 123456 (120.5 KiB)");
-        println!("        RX errors 0  dropped 0  overruns 0  frame 0");
-        println!("        TX packets 789  bytes 78901 (77.0 KiB)");
-        println!("        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0");
-        println!();
-        println!("lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536");
-        println!("        inet 127.0.0.1  netmask 255.0.0.0");
-        println!("        inet6 ::1  prefixlen 128  scopeid 0x10<host>");
-        println!("        loop  txqueuelen 1000  (Local Loopback)");
-        println!("        RX packets 100  bytes 10000 (9.7 KiB)");
-        println!("        RX errors 0  dropped 0  overruns 0  frame 0");
-        println!("        TX packets 100  bytes 10000 (9.7 KiB)");
-        println!("        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0");
-        println!();
-        println!("Note: This is educational data. Real implementation would:");
-        println!("  - Query network interface hardware");
-        println!("  - Read IP configuration from DHCP or static config");
-        println!("  - Support setting IP addresses, netmasks, and routes");
+    fn cmd_ifconfig(&self, args: &[&str]) {
+        use crate::net::config;
+        use crate::net::ipv4::Ipv4Addr;
+        use crate::drivers::e1000;
+
+        if args.is_empty() {
+            // Show current configuration
+            println!("Network Interfaces");
+            println!("════════════════════════════════════════");
+            println!();
+
+            if let Some(mac) = e1000::get_mac_address() {
+                let cfg = config::get_config();
+                let stats = crate::net::NET_STATS.lock();
+
+                println!("eth0: <BROADCAST,MULTICAST,UP>  mtu 1500");
+                println!("        ether {}  txqueuelen 1000  (Ethernet)", mac);
+
+                if cfg.ip_addr != Ipv4Addr::ZERO {
+                    println!("        inet {}  netmask {}", cfg.ip_addr, cfg.netmask);
+                    println!("        gateway {}", cfg.gateway);
+                } else {
+                    println!("        inet: NOT CONFIGURED");
+                    println!("        Use: ifconfig <ip> <netmask> <gateway>");
+                }
+
+                println!("        RX packets {}  bytes {}", stats.packets_received, stats.bytes_received);
+                println!("        TX packets {}  bytes {}", stats.packets_sent, stats.bytes_sent);
+                println!("        errors {}", stats.errors);
+            } else {
+                println!("No network interface found!");
+            }
+
+            println!();
+            println!("Usage: ifconfig <ip> <netmask> <gateway>");
+            println!("Example: ifconfig 192.168.1.100 255.255.255.0 192.168.1.1");
+        } else if args.len() >= 3 {
+            // Configure network
+            let parse_ip = |s: &str| -> Option<Ipv4Addr> {
+                let bytes: Result<alloc::vec::Vec<u8>, _> = s.split('.').map(|p| p.parse()).collect();
+                if let Ok(b) = bytes {
+                    if b.len() == 4 {
+                        return Some(Ipv4Addr::new(b[0], b[1], b[2], b[3]));
+                    }
+                }
+                None
+            };
+
+            let ip = match parse_ip(args[0]) {
+                Some(ip) => ip,
+                None => {
+                    println!("Error: Invalid IP address");
+                    return;
+                }
+            };
+
+            let netmask = match parse_ip(args[1]) {
+                Some(nm) => nm,
+                None => {
+                    println!("Error: Invalid netmask");
+                    return;
+                }
+            };
+
+            let gateway = match parse_ip(args[2]) {
+                Some(gw) => gw,
+                None => {
+                    println!("Error: Invalid gateway");
+                    return;
+                }
+            };
+
+            if let Some(mac) = e1000::get_mac_address() {
+                config::configure(ip, netmask, gateway, mac);
+                println!();
+                println!("Network interface configured successfully!");
+                println!("You can now use: ping, netstat, etc.");
+            } else {
+                println!("Error: Network hardware not available");
+            }
+        } else {
+            println!("Usage: ifconfig <ip> <netmask> <gateway>");
+            println!("Example: ifconfig 192.168.1.100 255.255.255.0 192.168.1.1");
+        }
     }
 
     fn cmd_netstat(&self, _args: &[&str]) {

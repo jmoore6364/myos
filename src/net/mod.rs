@@ -11,6 +11,8 @@ pub mod udp;
 pub mod tcp;
 pub mod socket;
 pub mod dns;
+pub mod config;
+pub mod handler;
 
 use alloc::vec::Vec;
 use spin::Mutex;
