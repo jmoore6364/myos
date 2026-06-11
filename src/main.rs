@@ -196,6 +196,9 @@ pub extern "C" fn _start(boot_info: &'static mut bootloader::BootInfo) -> ! {
     simplefs::init();
 
     println!("[10/13] Initializing network stack...");
+    println!("  Skipping network initialization (disabled for troubleshooting)");
+    // Temporarily disabled - E1000 driver has MMIO access issues with QEMU 4.2
+    /*
     if let Err(e) = drivers::e1000::init() {
         println!("  Warning: Network initialization failed: {}", e);
         println!("  Network commands will not be available.");
@@ -213,6 +216,7 @@ pub extern "C" fn _start(boot_info: &'static mut bootloader::BootInfo) -> ! {
             println!("    IP: {} Gateway: {}", ip, gateway);
         }
     }
+    */
 
     println!("[11/13] Enabling interrupts...");
     x86_64::instructions::interrupts::enable();
