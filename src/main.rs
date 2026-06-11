@@ -33,6 +33,7 @@ mod simplefs;
 mod elf;
 mod usermode;
 mod net;
+mod drivers;
 
 lazy_static! {
     pub static ref SHELL: Mutex<shell::Shell> = Mutex::new(shell::Shell::new());
@@ -191,16 +192,26 @@ pub extern "C" fn _start(boot_info: &'static mut bootloader::BootInfo) -> ! {
     println!("[8/12] Initializing ATA disk driver...");
     ata::init();
 
-    println!("[9/12] Initializing filesystem...");
+    println!("[9/13] Initializing filesystem...");
     simplefs::init();
 
-    println!("[10/12] Enabling interrupts...");
+    println!("[10/13] Initializing network stack...");
+    if let Err(e) = drivers::e1000::init() {
+        println!("  Warning: Network initialization failed: {}", e);
+        println!("  Network commands will not be available.");
+    } else {
+        if let Some(mac) = drivers::e1000::get_mac_address() {
+            println!("  ✓ Network card initialized - MAC: {}", mac);
+        }
+    }
+
+    println!("[11/13] Enabling interrupts...");
     x86_64::instructions::interrupts::enable();
 
-    println!("[11/12] Creating test tasks...");
+    println!("[12/13] Creating test tasks...");
     init_test_tasks();
 
-    println!("[12/12] Starting scheduler...");
+    println!("[13/13] Starting scheduler...");
 
     println!();
     println!("✓ Kernel initialized successfully!");
