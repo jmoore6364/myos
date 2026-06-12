@@ -393,6 +393,61 @@ Make sure you're using the correct QEMU flags:
 -netdev user,id=net0 -device e1000,netdev=net0
 ```
 
+### Blank screen or no output in QEMU
+
+**Issue:** QEMU runs but shows nothing, or WSL gives "gtk initialization failed"
+
+**Cause:** QEMU 4.2 (Ubuntu 20.04 default) has compatibility issues with serial output and WSLg.
+
+**Solution 1: Test if serial output works**
+```bash
+# Run QEMU with output to file
+qemu-system-x86_64 \
+    -drive format=raw,file=target/x86_64-unknown-none/release/bootimage-myos.bin \
+    -serial file:serial-output.txt \
+    -display none \
+    -m 128M &
+
+# Wait a few seconds
+sleep 5
+pkill qemu
+
+# Check output
+cat serial-output.txt
+```
+
+**Solution 2: Upgrade QEMU (WSL/Ubuntu - recommended)**
+```bash
+# Check current version
+qemu-system-x86_64 --version
+
+# If below 6.0, upgrade:
+sudo add-apt-repository ppa:canonical-server/server-backports
+sudo apt update
+sudo apt install qemu-system-x86
+
+# Verify upgrade
+qemu-system-x86_64 --version
+# Should show 6.x or newer
+```
+
+**Solution 3: Use QEMU on Windows natively**
+
+Download from https://www.qemu.org/download/#windows or:
+```powershell
+# In Windows PowerShell
+choco upgrade qemu
+```
+
+Then run MyOS from Windows PowerShell instead of WSL.
+
+**Solution 4: Alternative emulators**
+
+If QEMU continues to have issues, try:
+- **Bochs**: Simpler but slower x86 emulator
+- **VirtualBox**: Create a VM and boot from the ISO
+- **Real hardware**: Burn to USB and boot on actual PC
+
 ---
 
 ## 📚 Next Steps
